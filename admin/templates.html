@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notification Templates — AgencyPay Admin</title>
+  <meta name="description" content="Edit WhatsApp and email notification message templates.">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/admin.css">
+  <style>
+    .template-card {
+      background: var(--surface-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--color-gray-200);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      margin-bottom: var(--space-5);
+      transition: box-shadow var(--transition-normal);
+    }
+    .template-card:hover { box-shadow: var(--shadow-md); }
+
+    .template-header {
+      padding: var(--space-5) var(--space-6);
+      border-bottom: 1px solid var(--color-gray-100);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .template-type {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .type-icon {
+      width: 40px; height: 40px;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem;
+    }
+
+    .template-body { padding: var(--space-6); }
+
+    .channel-toggle {
+      display: flex;
+      background: var(--color-gray-100);
+      border-radius: var(--radius-md);
+      padding: 3px;
+      gap: 2px;
+    }
+    .channel-btn {
+      padding: 5px 14px;
+      border: none;
+      background: transparent;
+      border-radius: calc(var(--radius-md) - 1px);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--color-gray-500);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    .channel-btn.active {
+      background: #fff;
+      color: var(--color-brand-600);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .placeholder-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      margin-top: var(--space-2);
+    }
+    .placeholder-chip {
+      font-family: monospace;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      background: var(--color-brand-50);
+      color: var(--color-brand-700);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      border: 1px solid var(--color-brand-100);
+      transition: all var(--transition-fast);
+    }
+    .placeholder-chip:hover {
+      background: var(--color-brand-100);
+      color: var(--color-brand-800);
+    }
+
+    .settings-card {
+      background: var(--surface-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--color-gray-200);
+      box-shadow: var(--shadow-sm);
+      padding: var(--space-6);
+      margin-bottom: var(--space-6);
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar-mount"></div>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="flex items-center gap-4">
+        <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+        <div>
+          <div class="topbar-title">Notification Templates</div>
+          <div class="topbar-subtitle">Customize messages sent to clients</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- Timing Settings -->
+      <div class="settings-card">
+        <div class="section-header" style="margin-bottom: var(--space-4)">
+          <div class="section-title">⚙️ Reminder Timing</div>
+          <button class="btn btn-primary btn-sm" id="save-settings-btn" onclick="saveSettings()" data-loading-text="Saving…">
+            Save Settings
+          </button>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Days Before Due to Send Reminder</label>
+            <input type="number" id="s-reminder-days" class="form-input" min="1" max="30" value="3">
+            <span class="form-hint">e.g. 3 = reminder sent 3 days before the due date</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Grace Days Before Overdue Repeat</label>
+            <input type="number" id="s-grace-days" class="form-input" min="1" max="30" value="2">
+            <span class="form-hint">e.g. 2 = overdue notice sent every 2 days until paid</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Template Cards -->
+      <div id="templates-container">
+        <div class="page-loader"><div class="loader"></div></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script src="../js/config.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/api.js"></script>
+<script>
+  Auth.requireAuth('admin');
+
+  fetch('_sidebar.html').then(r => r.text()).then(html => {
+    document.getElementById('sidebar-mount').innerHTML = html;
+    document.getElementById('nav-templates').classList.add('active');
+    document.getElementById('admin-name').textContent = Auth.getName();
+    document.getElementById('admin-avatar').textContent = UI.initials(Auth.getName());
+  });
+
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('open');
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  }
+
+  const typeConfig = {
+    upcoming_due:     { label: 'Upcoming Due Reminder', icon: '⏰', iconBg: 'var(--color-warning-50)', iconColor: 'var(--color-warning-600)' },
+    due_today:        { label: 'Due Today',             icon: '📅', iconBg: 'var(--color-brand-50)',   iconColor: 'var(--color-brand-600)' },
+    overdue:          { label: 'Overdue Notice',         icon: '🔴', iconBg: 'var(--color-danger-50)',  iconColor: 'var(--color-danger-600)' },
+    payment_received: { label: 'Payment Received',       icon: '✅', iconBg: 'var(--color-success-50)', iconColor: 'var(--color-success-600)' },
+  };
+
+  const placeholders = ['{{client_name}}', '{{amount}}', '{{due_date}}', '{{website}}'];
+
+  let templates = [];
+
+  async function loadTemplates() {
+    try {
+      templates = await API.templates.list();
+      const settings = await API.templates.getSettings();
+      document.getElementById('s-reminder-days').value = settings.reminder_days_before || 3;
+      document.getElementById('s-grace-days').value = settings.grace_days_overdue || 2;
+      renderTemplates();
+    } catch (err) {
+      UI.toast('Failed to load templates: ' + err.message, 'error');
+    }
+  }
+
+  function renderTemplates() {
+    const container = document.getElementById('templates-container');
+    container.innerHTML = templates.map((tpl, idx) => {
+      const cfg = typeConfig[tpl.type] || { label: tpl.type, icon: '📩', iconBg: '#f5f5f5', iconColor: '#666' };
+      return `
+      <div class="template-card">
+        <div class="template-header">
+          <div class="template-type">
+            <div class="type-icon" style="background:${cfg.iconBg}; color:${cfg.iconColor}">${cfg.icon}</div>
+            <div>
+              <div style="font-weight:700; color:var(--color-gray-900)">${cfg.label}</div>
+              <div style="font-size:0.75rem; color:var(--color-gray-400); margin-top:2px">Type: <code>${tpl.type}</code></div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <!-- Channel selector -->
+            <div class="channel-toggle">
+              <button class="channel-btn ${tpl.channel === 'both' ? 'active' : ''}" onclick="setChannel(${idx}, 'both')">Both</button>
+              <button class="channel-btn ${tpl.channel === 'email' ? 'active' : ''}" onclick="setChannel(${idx}, 'email')">Email</button>
+              <button class="channel-btn ${tpl.channel === 'whatsapp' ? 'active' : ''}" onclick="setChannel(${idx}, 'whatsapp')">WhatsApp</button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="saveTemplate(${idx})" data-loading-text="Saving…" id="save-btn-${idx}">
+              Save
+            </button>
+          </div>
+        </div>
+        <div class="template-body">
+          <div class="form-group" style="margin-bottom: var(--space-4)">
+            <label class="form-label">Email Subject Line</label>
+            <input type="text" class="form-input" id="tpl-subject-${idx}"
+              value="${escHtml(tpl.subject || '')}" placeholder="Email subject…">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Message Body
+              <span style="font-weight:400; color:var(--color-gray-500); margin-left:4px">(used for both Email and WhatsApp)</span>
+            </label>
+            <textarea class="form-textarea" id="tpl-body-${idx}" rows="4">${escHtml(tpl.message_body)}</textarea>
+          </div>
+          <div class="mt-2">
+            <div class="form-hint" style="margin-bottom:6px">Click to insert placeholder:</div>
+            <div class="placeholder-chips">
+              ${placeholders.map(p => `<span class="placeholder-chip" onclick="insertPlaceholder(${idx}, '${p}')">${p}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function setChannel(idx, channel) {
+    templates[idx].channel = channel;
+    renderTemplates();
+  }
+
+  function insertPlaceholder(idx, placeholder) {
+    const textarea = document.getElementById(`tpl-body-${idx}`);
+    const pos = textarea.selectionStart;
+    const before = textarea.value.substring(0, pos);
+    const after = textarea.value.substring(textarea.selectionEnd);
+    textarea.value = before + placeholder + after;
+    textarea.selectionStart = textarea.selectionEnd = pos + placeholder.length;
+    textarea.focus();
+  }
+
+  async function saveTemplate(idx) {
+    const tpl = templates[idx];
+    const btn = document.getElementById(`save-btn-${idx}`);
+    const body = document.getElementById(`tpl-body-${idx}`).value.trim();
+    const subject = document.getElementById(`tpl-subject-${idx}`).value.trim();
+
+    if (!body) { UI.toast('Message body cannot be empty', 'error'); return; }
+
+    UI.setLoading(btn, true);
+    try {
+      await API.templates.update({ id: tpl.id, channel: tpl.channel, message_body: body, subject });
+      UI.toast('Template saved!', 'success');
+    } catch (err) {
+      UI.toast('Error: ' + err.message, 'error');
+    } finally {
+      UI.setLoading(btn, false);
+    }
+  }
+
+  async function saveSettings() {
+    const btn = document.getElementById('save-settings-btn');
+    const reminderDays = parseInt(document.getElementById('s-reminder-days').value);
+    const graceDays = parseInt(document.getElementById('s-grace-days').value);
+
+    UI.setLoading(btn, true);
+    try {
+      await API.templates.updateSettings({ reminder_days_before: reminderDays, grace_days_overdue: graceDays });
+      UI.toast('Settings saved!', 'success');
+    } catch (err) {
+      UI.toast('Error: ' + err.message, 'error');
+    } finally {
+      UI.setLoading(btn, false);
+    }
+  }
+
+  function escHtml(str) {
+    return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  loadTemplates();
+</script>
+</body>
+</html>

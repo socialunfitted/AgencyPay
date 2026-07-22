@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — AgencyPay Admin</title>
+  <meta name="description" content="Admin dashboard — overview of revenue, clients, and billing status.">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- Sidebar (injected) -->
+  <div id="sidebar-mount"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="flex items-center gap-4">
+        <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+        <div>
+          <div class="topbar-title">Dashboard</div>
+          <div class="topbar-subtitle" id="today-date">Loading…</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="location.href='clients.html?action=add'">
+          <span>＋</span> <span>Add Client</span>
+        </button>
+        <button class="btn btn-secondary btn-sm" id="btn-run-cron" onclick="runCron()" title="Run daily reminders now">
+          🔄 <span>Run Reminders</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <!-- Stats Grid -->
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card brand skeleton" style="height:140px"></div>
+        <div class="stat-card brand skeleton" style="height:140px"></div>
+        <div class="stat-card brand skeleton" style="height:140px"></div>
+        <div class="stat-card brand skeleton" style="height:140px"></div>
+        <div class="stat-card brand skeleton" style="height:140px"></div>
+      </div>
+
+      <!-- Quick Action Lists -->
+      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--space-6);" id="quick-lists">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">⚠️ Due Soon</span>
+            <a href="clients.html" class="btn btn-ghost btn-sm">View All →</a>
+          </div>
+          <div class="quick-list" id="due-soon-list">
+            <div class="page-loader"><div class="loader"></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🔴 Overdue</span>
+            <a href="clients.html" class="btn btn-ghost btn-sm">View All →</a>
+          </div>
+          <div class="quick-list" id="overdue-list">
+            <div class="page-loader"><div class="loader"></div></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script src="../js/config.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/api.js"></script>
+<script>
+  Auth.requireAuth('admin');
+
+  // ── Sidebar ────────────────────────────────────────────────
+  fetch('_sidebar.html').then(r => r.text()).then(html => {
+    document.getElementById('sidebar-mount').innerHTML = html;
+    document.getElementById('nav-dashboard').classList.add('active');
+    document.getElementById('admin-name').textContent = Auth.getName();
+    document.getElementById('admin-avatar').textContent = UI.initials(Auth.getName());
+  });
+
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('open');
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  }
+
+  // ── Today date ─────────────────────────────────────────────
+  document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-IN', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
+
+  // ── Load stats ─────────────────────────────────────────────
+  async function loadDashboard() {
+    try {
+      const data = await API.dashboard.getStats();
+
+      // Render stat cards
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card brand">
+          <div class="stat-icon">👥</div>
+          <div class="stat-value">${data.active_clients}</div>
+          <div class="stat-label">Active Clients</div>
+          <a href="clients.html" class="stat-link">View all →</a>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-icon">💰</div>
+          <div class="stat-value">${UI.formatRupees(data.total_mrr)}</div>
+          <div class="stat-label">Monthly Recurring Revenue</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon">📈</div>
+          <div class="stat-value">${UI.formatRupees(data.collected_this_month)}</div>
+          <div class="stat-label">Collected This Month</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-icon">⏰</div>
+          <div class="stat-value">${data.due_soon_count}</div>
+          <div class="stat-label">Due Soon</div>
+          <a href="clients.html" class="stat-link">View →</a>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-icon">🔴</div>
+          <div class="stat-value">${data.overdue_count}</div>
+          <div class="stat-label">Overdue</div>
+          <a href="clients.html" class="stat-link">View →</a>
+        </div>
+      `;
+
+      // Update nav badges
+      const dueSoonBadge = document.getElementById('nav-due-soon-badge');
+      if (dueSoonBadge) {
+        const total = data.due_soon_count + data.overdue_count;
+        dueSoonBadge.textContent = total;
+        dueSoonBadge.style.display = total > 0 ? '' : 'none';
+      }
+
+      // Due soon list
+      renderQuickList('due-soon-list', data.due_soon_clients, 'warning');
+      // Overdue list
+      renderQuickList('overdue-list', data.overdue_clients, 'danger');
+
+    } catch (err) {
+      UI.toast('Failed to load dashboard: ' + err.message, 'error');
+    }
+  }
+
+  function renderQuickList(containerId, clients, variant) {
+    const el = document.getElementById(containerId);
+    if (!clients || clients.length === 0) {
+      el.innerHTML = `
+        <div class="empty-state" style="padding: var(--space-8)">
+          <div class="empty-icon">✅</div>
+          <p>All clear — no clients here.</p>
+        </div>`;
+      return;
+    }
+    el.innerHTML = clients.map(c => `
+      <div class="quick-list-item ${variant}" onclick="location.href='client-detail.html?id=${c.id}'" style="cursor:pointer">
+        <div>
+          <div class="quick-list-name">${c.business_name}</div>
+          <div class="quick-list-sub">Due: ${UI.formatDate(c.next_due_date)} · ${UI.formatRupees(c.monthly_amount)}</div>
+        </div>
+        <span style="color: var(--color-gray-400); font-size:1rem">→</span>
+      </div>
+    `).join('');
+  }
+
+  async function runCron() {
+    const btn = document.getElementById('btn-run-cron');
+    UI.setLoading(btn, true);
+    try {
+      const result = await API.notifications.runCron();
+      UI.toast(`Reminders sent: ${result.sent} · Skipped: ${result.skipped}`, 'success');
+      loadDashboard();
+    } catch (err) {
+      UI.toast('Error: ' + err.message, 'error');
+    } finally {
+      UI.setLoading(btn, false);
+    }
+  }
+
+  // Quick-list responsive layout fix
+  function fixLayout() {
+    const grid = document.getElementById('quick-lists');
+    if (window.innerWidth < 768) {
+      grid.style.gridTemplateColumns = '1fr';
+    } else {
+      grid.style.gridTemplateColumns = '1fr 1fr';
+    }
+  }
+  window.addEventListener('resize', fixLayout);
+  fixLayout();
+
+  loadDashboard();
+</script>
+</body>
+</html>

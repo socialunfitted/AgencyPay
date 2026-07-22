@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clients — AgencyPay Admin</title>
+  <meta name="description" content="Manage all client accounts, subscriptions and billing status.">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/admin.css">
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar-mount"></div>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="flex items-center gap-4">
+        <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+        <div>
+          <div class="topbar-title">Clients</div>
+          <div class="topbar-subtitle" id="client-count">Loading…</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" onclick="openAddModal()">
+          ＋ <span>Add Client</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <!-- Filter Bar -->
+      <div class="card" style="padding: var(--space-4); margin-bottom: var(--space-5)">
+        <div class="filter-bar">
+          <div class="search-input-wrapper" style="flex:1; min-width:220px">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="form-input" id="search-input"
+              placeholder="Search by client name…" oninput="debounceLoad()">
+          </div>
+          <select class="form-select" id="status-filter" onchange="loadClients()" style="width:160px">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Clients Table -->
+      <div class="card" style="padding:0">
+        <div class="table-wrapper" id="clients-table-wrapper">
+          <div class="page-loader"><div class="loader"></div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ── Add / Edit Client Modal ─────────────────────────────── -->
+<div class="modal-overlay" id="client-modal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h3 id="modal-title">Add New Client</h3>
+      <button class="modal-close" onclick="UI.closeModal('client-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <form id="client-form" class="flex flex-col gap-4">
+        <input type="hidden" id="edit-client-id">
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Business Name <span class="required">*</span></label>
+            <input type="text" id="f-business-name" class="form-input" placeholder="e.g. Raj Enterprises" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Website URL</label>
+            <input type="url" id="f-website-url" class="form-input" placeholder="https://client.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contact Person</label>
+            <input type="text" id="f-contact-person" class="form-input" placeholder="Name of main contact">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email <span class="required">*</span></label>
+            <input type="email" id="f-email" class="form-input" placeholder="client@example.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">WhatsApp Number</label>
+            <input type="text" id="f-whatsapp" class="form-input" placeholder="91XXXXXXXXXX (with country code)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Monthly Amount (₹) <span class="required">*</span></label>
+            <input type="number" id="f-amount" class="form-input" value="1000" min="1" required>
+          </div>
+          <div class="form-group" id="username-group">
+            <label class="form-label">Username <span class="required">*</span></label>
+            <input type="text" id="f-username" class="form-input" placeholder="e.g. rajenterprises" autocomplete="off">
+          </div>
+          <div class="form-group" id="password-group">
+            <label class="form-label">Password</label>
+            <div class="flex gap-2">
+              <input type="text" id="f-password" class="form-input" placeholder="Auto-generated if blank" autocomplete="new-password">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="generatePassword()" title="Generate password">🔀</button>
+            </div>
+            <span class="form-hint" id="pwd-hint">Leave blank to auto-generate a secure password.</span>
+          </div>
+          <div class="form-group" id="start-date-group">
+            <label class="form-label">Subscription Start Date <span class="required">*</span></label>
+            <input type="date" id="f-start-date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select id="f-status" class="form-select">
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="UI.closeModal('client-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-client-btn" onclick="saveClient()" data-loading-text="Saving…">
+        Save Client
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Password Shown Once Modal ──────────────────────────── -->
+<div class="modal-overlay" id="password-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3>🔑 Client Created!</h3>
+      <button class="modal-close" onclick="UI.closeModal('password-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--color-gray-700); margin-bottom: var(--space-4)">
+        The client account has been created. Copy the password below and share it with the client via WhatsApp or email. <strong>This password will not be shown again.</strong>
+      </p>
+      <div class="password-reveal-box">
+        <div>
+          <div class="pwd-text" id="new-password-display">—</div>
+          <div class="pwd-warning">🔒 Shown once only — copy it now</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="copyPassword()" style="flex-shrink:0">📋 Copy</button>
+      </div>
+      <p style="font-size:0.8125rem; color:var(--color-gray-500)">
+        Username: <strong id="new-username-display">—</strong>
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="UI.closeModal('password-modal')">Done</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script src="../js/config.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/api.js"></script>
+<script>
+  Auth.requireAuth('admin');
+
+  fetch('_sidebar.html').then(r => r.text()).then(html => {
+    document.getElementById('sidebar-mount').innerHTML = html;
+    document.getElementById('nav-clients').classList.add('active');
+    document.getElementById('admin-name').textContent = Auth.getName();
+    document.getElementById('admin-avatar').textContent = UI.initials(Auth.getName());
+  });
+
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('open');
+  }
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  }
+
+  // ── Auto-open Add modal if URL param set ─────────────────
+  if (new URLSearchParams(location.search).get('action') === 'add') {
+    openAddModal();
+  }
+
+  // ── Debounce search ───────────────────────────────────────
+  let searchTimeout;
+  function debounceLoad() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(loadClients, 350);
+  }
+
+  // ── Load clients ──────────────────────────────────────────
+  async function loadClients() {
+    const search = document.getElementById('search-input').value.trim();
+    const status = document.getElementById('status-filter').value;
+    const params = {};
+    if (search) params.search = search;
+    if (status) params.status = status;
+
+    const wrapper = document.getElementById('clients-table-wrapper');
+    wrapper.innerHTML = `<div class="page-loader"><div class="loader"></div></div>`;
+
+    try {
+      const clients = await API.clients.list(params);
+      document.getElementById('client-count').textContent =
+        `${clients.length} client${clients.length !== 1 ? 's' : ''}`;
+      renderTable(clients);
+    } catch (err) {
+      wrapper.innerHTML = `<div class="empty-state"><p>Error: ${err.message}</p></div>`;
+    }
+  }
+
+  function renderTable(clients) {
+    const wrapper = document.getElementById('clients-table-wrapper');
+    if (!clients.length) {
+      wrapper.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">👥</div>
+        <h3>No clients found</h3>
+        <p>Add your first client to get started.</p>
+        <button class="btn btn-primary btn-sm" onclick="openAddModal()">＋ Add Client</button>
+      </div>`;
+      return;
+    }
+
+    const rows = clients.map(c => {
+      const bs = c.billing_status;
+      const rowClass = bs === 'overdue' ? 'status-overdue'
+                     : bs === 'due_soon' ? 'status-due-soon' : 'status-current';
+      return `
+      <tr class="${rowClass}">
+        <td>
+          <div style="font-weight:600; color:var(--color-gray-900)">${c.business_name}</div>
+          <div style="font-size:0.8125rem; color:var(--color-gray-500)">${c.contact_person || ''}</div>
+        </td>
+        <td>
+          ${c.website_url
+            ? `<a href="${c.website_url}" target="_blank" style="font-size:0.875rem">🔗 ${new URL(c.website_url).hostname}</a>`
+            : '<span style="color:var(--color-gray-400)">—</span>'}
+        </td>
+        <td style="font-weight:700; color:var(--color-gray-900)">${UI.formatRupees(c.monthly_amount)}</td>
+        <td>${UI.formatDate(c.next_due_date)}</td>
+        <td>${UI.statusBadge(c.billing_status === 'current' && c.status === 'active' ? 'active' :
+              c.status !== 'active' ? c.status : c.billing_status)}</td>
+        <td>
+          <div class="table-actions">
+            <a href="client-detail.html?id=${c.id}" class="btn btn-ghost btn-sm btn-icon" title="View">👁</a>
+            <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="openEditModal('${c.id}')">✏️</button>
+            <button class="btn btn-ghost btn-sm btn-icon" title="${c.status === 'paused' ? 'Reactivate' : 'Pause'}"
+              onclick="togglePause('${c.id}', '${c.status}')">
+              ${c.status === 'paused' ? '▶️' : '⏸️'}
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    wrapper.innerHTML = `<table>
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Website</th>
+          <th>Monthly</th>
+          <th>Next Due</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  // ── Add modal ─────────────────────────────────────────────
+  function openAddModal() {
+    document.getElementById('modal-title').textContent = 'Add New Client';
+    document.getElementById('client-form').reset();
+    document.getElementById('edit-client-id').value = '';
+    document.getElementById('f-start-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('username-group').style.display = '';
+    document.getElementById('start-date-group').style.display = '';
+    document.getElementById('pwd-hint').textContent = 'Leave blank to auto-generate a secure password.';
+    UI.openModal('client-modal');
+  }
+
+  // ── Edit modal ────────────────────────────────────────────
+  async function openEditModal(clientId) {
+    document.getElementById('modal-title').textContent = 'Edit Client';
+    document.getElementById('edit-client-id').value = clientId;
+    document.getElementById('username-group').style.display = 'none';
+    document.getElementById('start-date-group').style.display = 'none';
+    document.getElementById('pwd-hint').textContent = 'Enter a new password to change it, or leave blank to keep unchanged.';
+    document.getElementById('f-password').value = '';
+
+    try {
+      const c = await API.clients.get(clientId);
+      document.getElementById('f-business-name').value = c.business_name || '';
+      document.getElementById('f-website-url').value = c.website_url || '';
+      document.getElementById('f-contact-person').value = c.contact_person || '';
+      document.getElementById('f-email').value = c.email || '';
+      document.getElementById('f-whatsapp').value = c.whatsapp_number || '';
+      document.getElementById('f-amount').value = c.monthly_amount || 1000;
+      document.getElementById('f-status').value = c.status || 'active';
+      UI.openModal('client-modal');
+    } catch (err) {
+      UI.toast('Failed to load client: ' + err.message, 'error');
+    }
+  }
+
+  // ── Save (create or update) ───────────────────────────────
+  async function saveClient() {
+    const btn = document.getElementById('save-client-btn');
+    const editId = document.getElementById('edit-client-id').value;
+    const isEdit = !!editId;
+
+    const body = {
+      business_name:          document.getElementById('f-business-name').value.trim(),
+      website_url:            document.getElementById('f-website-url').value.trim() || null,
+      contact_person:         document.getElementById('f-contact-person').value.trim() || null,
+      email:                  document.getElementById('f-email').value.trim(),
+      whatsapp_number:        document.getElementById('f-whatsapp').value.trim() || null,
+      monthly_amount:         parseFloat(document.getElementById('f-amount').value),
+      status:                 document.getElementById('f-status').value,
+    };
+
+    if (!isEdit) {
+      body.username = document.getElementById('f-username').value.trim().toLowerCase();
+      body.subscription_start_date = document.getElementById('f-start-date').value;
+    }
+
+    const pwd = document.getElementById('f-password').value;
+    if (pwd) body.password = pwd;
+
+    if (!body.business_name || !body.email) {
+      UI.toast('Business name and email are required', 'error');
+      return;
+    }
+
+    UI.setLoading(btn, true);
+    try {
+      if (isEdit) {
+        await API.clients.update(editId, body);
+        UI.toast('Client updated successfully', 'success');
+        UI.closeModal('client-modal');
+        loadClients();
+      } else {
+        if (!body.username) { UI.toast('Username is required', 'error'); UI.setLoading(btn, false); return; }
+        const result = await API.clients.create(body);
+        UI.closeModal('client-modal');
+        // Show password modal
+        document.getElementById('new-password-display').textContent = result.generated_password;
+        document.getElementById('new-username-display').textContent = result.username;
+        UI.openModal('password-modal');
+        loadClients();
+      }
+    } catch (err) {
+      UI.toast('Error: ' + err.message, 'error');
+    } finally {
+      UI.setLoading(btn, false);
+    }
+  }
+
+  async function togglePause(clientId, currentStatus) {
+    const newStatus = currentStatus === 'paused' ? 'active' : 'paused';
+    try {
+      await API.clients.updateStatus(clientId, newStatus);
+      UI.toast(`Client ${newStatus === 'active' ? 'reactivated' : 'paused'}`, 'success');
+      loadClients();
+    } catch (err) {
+      UI.toast('Error: ' + err.message, 'error');
+    }
+  }
+
+  function generatePassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!';
+    let pwd = '';
+    for (let i = 0; i < 12; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+    document.getElementById('f-password').value = pwd;
+  }
+
+  function copyPassword() {
+    const text = document.getElementById('new-password-display').textContent;
+    navigator.clipboard.writeText(text).then(() => UI.toast('Password copied!', 'success'));
+  }
+
+  loadClients();
+</script>
+</body>
+</html>
