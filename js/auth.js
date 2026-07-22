@@ -1,90 +1,88 @@
 // ============================================================
-// AgencyPay — Auth module
-// Session management, role routing, logout
+// AgencyPay — Auth module using Supabase Auth (email + password)
 // ============================================================
 
 const Auth = (() => {
-  function save(token, role, name, id) {
-    sessionStorage.setItem(CONFIG.TOKEN_KEY, token);
-    sessionStorage.setItem(CONFIG.ROLE_KEY, role);
-    sessionStorage.setItem(CONFIG.NAME_KEY, name);
-    sessionStorage.setItem(CONFIG.ID_KEY, id);
-    // Also persist in localStorage for page refreshes
-    localStorage.setItem(CONFIG.TOKEN_KEY, token);
-    localStorage.setItem(CONFIG.ROLE_KEY, role);
-    localStorage.setItem(CONFIG.NAME_KEY, name);
-    localStorage.setItem(CONFIG.ID_KEY, id);
+  let _session = null;
+
+  // ── Internal: get role from session ─────────────────────
+  function _role(session) {
+    return session?.user?.user_metadata?.role || null;
   }
 
-  function getToken() {
-    return sessionStorage.getItem(CONFIG.TOKEN_KEY)
-      || localStorage.getItem(CONFIG.TOKEN_KEY);
+  function _name(session) {
+    return session?.user?.user_metadata?.name
+      || session?.user?.email
+      || 'User';
   }
 
-  function getRole() {
-    return sessionStorage.getItem(CONFIG.ROLE_KEY)
-      || localStorage.getItem(CONFIG.ROLE_KEY);
-  }
+  // ── Login ────────────────────────────────────────────────
+  async function login(email, password) {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (error) throw new Error(error.message);
 
-  function getName() {
-    return sessionStorage.getItem(CONFIG.NAME_KEY)
-      || localStorage.getItem(CONFIG.NAME_KEY) || 'User';
-  }
+    _session = data.session;
+    const role = _role(data.session);
 
-  function getId() {
-    return sessionStorage.getItem(CONFIG.ID_KEY)
-      || localStorage.getItem(CONFIG.ID_KEY);
-  }
-
-  function isLoggedIn() {
-    const token = getToken();
-    if (!token) return false;
-    // Decode JWT to check expiry (without verifying signature — server verifies)
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const now = Math.floor(Date.now() / 1000);
-      return payload.exp > now;
-    } catch {
-      return false;
+    if (!role) {
+      await supabaseClient.auth.signOut();
+      throw new Error('Account has no role assigned. Contact your administrator.');
     }
+
+    return {
+      role,
+      name: _name(data.session),
+      id: data.user.id,
+    };
   }
 
-  function logout() {
-    sessionStorage.clear();
-    localStorage.removeItem(CONFIG.TOKEN_KEY);
-    localStorage.removeItem(CONFIG.ROLE_KEY);
-    localStorage.removeItem(CONFIG.NAME_KEY);
-    localStorage.removeItem(CONFIG.ID_KEY);
+  // ── Logout ───────────────────────────────────────────────
+  async function logout() {
+    await supabaseClient.auth.signOut();
     window.location.href = CONFIG.LOGIN;
   }
 
-  /** Call at top of every protected page */
-  function requireAuth(requiredRole) {
-    if (!isLoggedIn()) {
+  // ── Require auth (call at top of every protected page) ──
+  async function requireAuth(requiredRole) {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    _session = session;
+
+    if (!session) {
       window.location.href = CONFIG.LOGIN;
       return false;
     }
-    const role = getRole();
+
+    const role = _role(session);
+
     if (requiredRole && role !== requiredRole) {
-      // Redirect to appropriate home
+      // Wrong role — redirect to correct home
       window.location.href = role === 'admin' ? CONFIG.ADMIN_HOME : CONFIG.CLIENT_HOME;
       return false;
     }
+
     return true;
   }
 
-  /** Login — calls auth-login Edge Function */
-  async function login(username, password, role) {
-    const res = await fetch(`${CONFIG.FUNCTIONS_URL}/auth-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, role }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
-    save(data.token, data.role, data.name, data.id);
-    return data;
-  }
+  // ── Sync getters (use cached _session — only valid after requireAuth) ──
+  function getRole()  { return _role(_session); }
+  function getName()  { return _name(_session); }
+  function getId()    { return _session?.user?.id || null; }
+  function getToken() { return _session?.access_token || null; }
+  function isLoggedIn() { return !!_session; }
 
-  return { login, logout, requireAuth, getToken, getRole, getName, getId, isLoggedIn };
+  // ── Listen for session changes (token refresh, sign-out) ──
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    _session = session;
+    if (event === 'SIGNED_OUT') {
+      window.location.href = CONFIG.LOGIN;
+    }
+  });
+
+  return {
+    login, logout, requireAuth,
+    getRole, getName, getId, getToken, isLoggedIn,
+  };
 })();
