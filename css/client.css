@@ -1,0 +1,342 @@
+/* ============================================================
+   AgencyPay — Client Dashboard Styles
+   ============================================================ */
+
+/* ── Client Layout ───────────────────────────────────────────── */
+.client-app {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0f4ff 0%, #fafafa 60%, #fff7ed 100%);
+}
+
+/* ── Client Header ───────────────────────────────────────────── */
+.client-header {
+  background: var(--surface-sidebar);
+  padding: var(--space-5) var(--space-8);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.25);
+}
+
+.client-header-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.client-header .logo-mark {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, var(--color-brand-400), var(--color-brand-700));
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(99,102,241,0.4);
+}
+
+.client-header .agency-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.client-header .portal-label {
+  font-size: 0.6875rem;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.client-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.client-name-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  color: rgba(255,255,255,0.85);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.client-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-brand-400), var(--color-brand-700));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+.btn-logout {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.7);
+  padding: 7px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-logout:hover {
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+}
+
+/* ── Client Main Container ───────────────────────────────────── */
+.client-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+}
+
+/* ── Hero Card: Subscription Status ─────────────────────────── */
+.subscription-hero {
+  background: var(--surface-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  margin-bottom: var(--space-6);
+  position: relative;
+}
+
+.hero-accent-bar {
+  height: 5px;
+  background: linear-gradient(90deg, var(--color-brand-400), var(--color-brand-700));
+}
+
+.hero-accent-bar.success {
+  background: linear-gradient(90deg, var(--color-success-400), var(--color-success-600));
+}
+
+.hero-accent-bar.warning {
+  background: linear-gradient(90deg, var(--color-warning-400), var(--color-warning-600));
+}
+
+.hero-accent-bar.danger {
+  background: linear-gradient(90deg, var(--color-danger-400), var(--color-danger-600));
+  animation: pulseBar 2s ease infinite;
+}
+
+@keyframes pulseBar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.hero-body {
+  padding: var(--space-8);
+}
+
+.hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.hero-website a {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-brand-600);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hero-website a:hover { color: var(--color-brand-700); }
+
+.payment-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.payment-info-block .info-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-gray-400);
+  margin-bottom: var(--space-2);
+}
+
+.payment-info-block .info-value {
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  font-weight: 800;
+  color: var(--color-gray-900);
+  line-height: 1;
+}
+
+.payment-info-block .info-sub {
+  font-size: 0.8125rem;
+  color: var(--color-gray-500);
+  margin-top: 4px;
+}
+
+.countdown-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  margin-top: var(--space-3);
+}
+
+.countdown-badge.current {
+  background: var(--color-success-50);
+  color: var(--color-success-700);
+  border: 1px solid var(--color-success-100);
+}
+
+.countdown-badge.due-soon {
+  background: var(--color-warning-50);
+  color: var(--color-warning-700);
+  border: 1px solid var(--color-warning-100);
+}
+
+.countdown-badge.overdue {
+  background: var(--color-danger-50);
+  color: var(--color-danger-700);
+  border: 1px solid var(--color-danger-100);
+  animation: pulseBadge 2s ease infinite;
+}
+
+@keyframes pulseBadge {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 0 4px rgba(239,68,68,0.15); }
+}
+
+/* ── Monthly Strip ───────────────────────────────────────────── */
+.monthly-strip-card {
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-gray-100);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.monthly-strip {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+}
+
+.month-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
+}
+
+.month-chip .month-bar {
+  width: 32px; height: 44px;
+  border-radius: 6px;
+  transition: transform var(--transition-fast);
+}
+
+.month-chip:hover .month-bar { transform: scaleY(1.05); transform-origin: bottom; }
+
+.month-chip .month-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-gray-500);
+}
+
+.month-bar.paid     { background: var(--color-success-400); }
+.month-bar.unpaid   { background: var(--color-danger-300); }
+.month-bar.upcoming { background: var(--color-gray-200); }
+
+.strip-legend {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.strip-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+}
+
+.legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 3px;
+}
+.legend-dot.paid     { background: var(--color-success-400); }
+.legend-dot.unpaid   { background: var(--color-danger-300); }
+.legend-dot.upcoming { background: var(--color-gray-200); border: 1px solid var(--color-gray-300); }
+
+/* ── Payment History Table ───────────────────────────────────── */
+.payment-history-card {
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-gray-100);
+  overflow: hidden;
+}
+
+.payment-mode-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--color-brand-50);
+  color: var(--color-brand-700);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ── Client Responsive ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .client-header {
+    padding: var(--space-4);
+  }
+  .client-container {
+    padding: var(--space-5) var(--space-4);
+  }
+  .hero-body {
+    padding: var(--space-5);
+  }
+  .payment-card-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .payment-info-block .info-value {
+    font-size: 1.375rem;
+  }
+  .client-name-pill span { display: none; }
+}
+
+@media (max-width: 480px) {
+  .client-header .agency-name { display: none; }
+  .payment-card-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+}
