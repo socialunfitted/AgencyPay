@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Subscription — AgencyPay</title>
+  <meta name="description" content="View your website subscription status, next due date, and payment history.">
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/client.css">
+</head>
+<body>
+<div class="client-app" id="client-app">
+
+  <!-- Header -->
+  <header class="client-header">
+    <div class="client-header-brand">
+      <div class="logo-mark">💳</div>
+      <div>
+        <div class="agency-name" id="agency-name">AgencyPay</div>
+        <div class="portal-label">Client Portal</div>
+      </div>
+    </div>
+    <div class="client-header-right">
+      <div class="client-name-pill">
+        <div class="client-avatar" id="client-avatar">?</div>
+        <span id="client-name-pill">My Account</span>
+      </div>
+      <button class="btn-logout" onclick="Auth.logout()">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- Loading state -->
+  <div id="loading-screen" class="client-container" style="padding-top: 80px; text-align:center">
+    <div class="loader" style="margin:auto; width:48px; height:48px"></div>
+    <p style="margin-top: 20px; color: var(--color-gray-500)">Loading your account…</p>
+  </div>
+
+  <!-- Main Content (hidden until loaded) -->
+  <div id="main-portal" style="display:none">
+    <div class="client-container">
+
+      <!-- Hero: Subscription Status Card -->
+      <div class="subscription-hero" id="hero-card">
+        <div class="hero-accent-bar" id="hero-bar"></div>
+        <div class="hero-body">
+          <div class="hero-top">
+            <div>
+              <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--color-gray-400); margin-bottom:4px">Your Subscription</div>
+              <h1 id="hero-business-name" style="font-size:1.5rem; font-weight:800; margin-bottom:4px">—</h1>
+              <div class="hero-website" id="hero-website"></div>
+            </div>
+            <div id="hero-status-badge"></div>
+          </div>
+
+          <div class="payment-card-grid" id="payment-grid">
+            <div class="payment-info-block">
+              <div class="info-label">Monthly Amount</div>
+              <div class="info-value" id="hero-amount">—</div>
+              <div class="info-sub">per month</div>
+            </div>
+            <div class="payment-info-block">
+              <div class="info-label">Next Due Date</div>
+              <div class="info-value" id="hero-due-date">—</div>
+              <div id="hero-countdown" class="countdown-badge" style="margin-top:6px">—</div>
+            </div>
+            <div class="payment-info-block">
+              <div class="info-label">Last Paid</div>
+              <div class="info-value" id="hero-last-paid">—</div>
+              <div class="info-sub" id="hero-start-date"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monthly History Strip -->
+      <div class="monthly-strip-card" id="monthly-strip-section">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--space-2)">
+          <div class="card-title" style="font-size:1rem">📅 Payment History — Last 12 Months</div>
+        </div>
+        <div class="monthly-strip" id="monthly-strip"></div>
+        <div class="strip-legend">
+          <div class="strip-legend-item"><div class="legend-dot paid"></div> Paid</div>
+          <div class="strip-legend-item"><div class="legend-dot unpaid"></div> Unpaid</div>
+          <div class="strip-legend-item"><div class="legend-dot upcoming"></div> Upcoming</div>
+        </div>
+      </div>
+
+      <!-- Payment History Table -->
+      <div class="payment-history-card">
+        <div class="card-header" style="padding: var(--space-5) var(--space-6) var(--space-4)">
+          <span class="card-title">💳 Payment History</span>
+          <span id="payment-count" style="font-size:0.8125rem; color:var(--color-gray-500)">0 payments</span>
+        </div>
+        <div class="table-wrapper" id="payment-table-wrapper">
+          <div class="page-loader"><div class="loader"></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script src="../js/config.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/api.js"></script>
+<script>
+  Auth.requireAuth('client');
+
+  async function loadPortal() {
+    try {
+      const data = await API.clientPortal.getData();
+      const c = data.client;
+
+      // Hide loader, show portal
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('main-portal').style.display = '';
+
+      // Header
+      document.getElementById('client-name-pill').textContent = c.business_name;
+      document.getElementById('client-avatar').textContent = UI.initials(c.business_name);
+      document.getElementById('agency-name').textContent = CONFIG.AGENCY_NAME;
+
+      // Hero card
+      document.getElementById('hero-business-name').textContent = c.business_name;
+
+      if (c.website_url) {
+        document.getElementById('hero-website').innerHTML =
+          `<a href="${c.website_url}" target="_blank">🔗 ${c.website_url}</a>`;
+      }
+
+      // Status badge + accent bar
+      const statusMap = {
+        current:  { label: 'Current', cls: 'current', barCls: 'success' },
+        due_soon: { label: 'Due Soon', cls: 'due-soon', barCls: 'warning' },
+        overdue:  { label: 'Overdue', cls: 'overdue', barCls: 'danger' },
+      };
+      const s = statusMap[c.billing_status] || statusMap.current;
+      document.getElementById('hero-bar').className = `hero-accent-bar ${s.barCls}`;
+      document.getElementById('hero-status-badge').innerHTML =
+        `<span class="badge badge-${s.cls}" style="font-size:0.9rem; padding:6px 14px">
+          <span class="badge-dot"></span>${s.label}
+        </span>`;
+
+      // Payment info
+      document.getElementById('hero-amount').textContent = UI.formatRupees(c.monthly_amount);
+      document.getElementById('hero-due-date').textContent = c.next_due_date_formatted;
+      document.getElementById('hero-last-paid').textContent =
+        c.last_paid_date ? UI.formatDate(c.last_paid_date) : 'Never';
+      document.getElementById('hero-start-date').textContent =
+        'Since ' + UI.formatDate(c.subscription_start_date);
+
+      // Countdown badge
+      const daysDiff = c.days_until_due;
+      const countdownEl = document.getElementById('hero-countdown');
+      const cdClass = daysDiff > 3 ? 'current' : daysDiff >= 0 ? 'due-soon' : 'overdue';
+      countdownEl.className = `countdown-badge ${cdClass}`;
+      countdownEl.textContent = c.countdown_text;
+
+      // Monthly strip
+      const strip = document.getElementById('monthly-strip');
+      strip.innerHTML = (data.monthly_strip || []).map(item => `
+        <div class="month-chip" title="${item.month} — ${item.status}">
+          <div class="month-bar ${item.status}"></div>
+          <div class="month-label">${item.month}</div>
+        </div>
+      `).join('');
+
+      // Payment history table
+      renderPaymentTable(data.payments);
+
+    } catch (err) {
+      document.getElementById('loading-screen').innerHTML = `
+        <div class="empty-state" style="padding-top: 60px">
+          <div class="empty-icon">⚠️</div>
+          <h3>Couldn't load your account</h3>
+          <p>${err.message}</p>
+          <button class="btn btn-primary btn-sm" onclick="location.reload()">Retry</button>
+        </div>`;
+    }
+  }
+
+  function renderPaymentTable(payments) {
+    const wrapper = document.getElementById('payment-table-wrapper');
+    document.getElementById('payment-count').textContent =
+      `${payments.length} payment${payments.length !== 1 ? 's' : ''}`;
+
+    if (!payments.length) {
+      wrapper.innerHTML = `<div class="empty-state" style="padding: var(--space-8)">
+        <div class="empty-icon">💳</div>
+        <h3>No payments yet</h3>
+        <p>Your payment history will appear here once your agency records a payment.</p>
+      </div>`;
+      return;
+    }
+
+    const rows = payments.map((p, i) => `
+      <tr>
+        <td style="font-weight:600">${p.payment_date_formatted}</td>
+        <td style="font-weight:700; color:var(--color-gray-900)">${UI.formatRupees(p.amount)}</td>
+        <td>${UI.paymentModeIcon(p.payment_mode)}</td>
+        <td style="color:var(--color-gray-500); font-size:0.875rem">${p.reference_note || '—'}</td>
+        <td><span class="badge badge-current"><span class="badge-dot"></span>Received</span></td>
+      </tr>
+    `).join('');
+
+    wrapper.innerHTML = `<table>
+      <thead><tr>
+        <th>Date</th>
+        <th>Amount</th>
+        <th>Payment Mode</th>
+        <th>Reference</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  loadPortal();
+</script>
+</body>
+</html>
