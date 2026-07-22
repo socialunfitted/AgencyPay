@@ -5,8 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clients — AgencyPay Admin</title>
   <meta name="description" content="Manage all client accounts, subscriptions and billing status.">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/admin.css">
+  <style>
+    .modal-overlay {
+      display: none !important;
+    }
+    .modal-overlay.open {
+      display: flex !important;
+      position: fixed !important;
+      top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+      width: 100vw !important; height: 100vh !important;
+      background: rgba(15, 23, 42, 0.8) !important;
+      z-index: 999999 !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 16px !important;
+    }
+    .modal-overlay.open .modal {
+      display: block !important;
+      background: #ffffff !important;
+      color: #0f172a !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      z-index: 1000000 !important;
+      position: relative !important;
+      margin: auto !important;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+      border: 1px solid #cbd5e1 !important;
+      border-radius: 16px !important;
+      width: 100% !important;
+      max-width: 620px !important;
+      max-height: 88vh !important;
+      overflow-y: auto !important;
+    }
+  </style>
 </head>
 <body>
 <div class="app-shell">
@@ -89,12 +123,15 @@
             <input type="text" id="f-whatsapp" class="form-input" placeholder="91XXXXXXXXXX (with country code)">
           </div>
           <div class="form-group">
-            <label class="form-label">Monthly Amount (₹) <span class="required">*</span></label>
+            <label class="form-label">Subscription Amount (₹) <span class="required">*</span></label>
             <input type="number" id="f-amount" class="form-input" value="1000" min="1" required>
           </div>
-          <div class="form-group" id="username-group">
-            <label class="form-label">Username <span class="required">*</span></label>
-            <input type="text" id="f-username" class="form-input" placeholder="e.g. rajenterprises" autocomplete="off">
+          <div class="form-group">
+            <label class="form-label">Billing Cycle</label>
+            <select id="f-billing-cycle" class="form-select">
+              <option value="monthly">📅 Monthly (Per Month)</option>
+              <option value="yearly">🗓️ Yearly (Per Year)</option>
+            </select>
           </div>
           <div class="form-group" id="password-group">
             <label class="form-label">Password</label>
@@ -147,7 +184,7 @@
         <button class="btn btn-secondary btn-sm" onclick="copyPassword()" style="flex-shrink:0">📋 Copy</button>
       </div>
       <p style="font-size:0.8125rem; color:var(--color-gray-500)">
-        Username: <strong id="new-username-display">—</strong>
+        Email (Login ID): <strong id="new-username-display">—</strong>
       </p>
     </div>
     <div class="modal-footer">
@@ -162,14 +199,23 @@
 <script src="../js/auth.js"></script>
 <script src="../js/api.js"></script>
 <script>
-  Auth.requireAuth('admin');
+  (async () => {
+    if (!await Auth.requireAuth('admin')) return;
 
-  fetch('_sidebar.html').then(r => r.text()).then(html => {
-    document.getElementById('sidebar-mount').innerHTML = html;
-    document.getElementById('nav-clients').classList.add('active');
-    document.getElementById('admin-name').textContent = Auth.getName();
-    document.getElementById('admin-avatar').textContent = UI.initials(Auth.getName());
-  });
+    fetch('_sidebar.html').then(r => r.text()).then(html => {
+      document.getElementById('sidebar-mount').innerHTML = html;
+      document.getElementById('nav-clients').classList.add('active');
+      document.getElementById('mnav-clients')?.classList.add('active');
+      document.getElementById('admin-name').textContent = Auth.getName();
+      document.getElementById('admin-avatar').textContent = UI.initials(Auth.getName());
+    });
+
+    loadClients();
+
+    if (new URLSearchParams(location.search).get('action') === 'add') {
+      openAddModal();
+    }
+  })();
 
   function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
@@ -178,11 +224,6 @@
   function closeSidebar() {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebar-overlay').classList.remove('open');
-  }
-
-  // ── Auto-open Add modal if URL param set ─────────────────
-  if (new URLSearchParams(location.search).get('action') === 'add') {
-    openAddModal();
   }
 
   // ── Debounce search ───────────────────────────────────────
@@ -236,17 +277,21 @@
           <div style="font-size:0.8125rem; color:var(--color-gray-500)">${c.contact_person || ''}</div>
         </td>
         <td>
-          ${c.website_url
-            ? `<a href="${c.website_url}" target="_blank" style="font-size:0.875rem">🔗 ${new URL(c.website_url).hostname}</a>`
-            : '<span style="color:var(--color-gray-400)">—</span>'}
+          ${(() => {
+            if (!c.website_url) return '<span style="color:var(--color-gray-400)">—</span>';
+            const href = c.website_url.startsWith('http') ? c.website_url : `https://${c.website_url}`;
+            const display = c.website_url.replace(/^https?:\/\//, '');
+            return `<a href="${href}" target="_blank" rel="noopener" style="font-size:0.875rem">🌐 ${display}</a>`;
+          })()}
         </td>
-        <td style="font-weight:700; color:var(--color-gray-900)">${UI.formatRupees(c.monthly_amount)}</td>
+        <td style="font-weight:700; color:var(--color-gray-900)">${UI.formatRupees(c.monthly_amount)} <span style="font-size:0.75rem; font-weight:500; color:var(--color-gray-500)">/${c.billing_cycle === 'yearly' ? 'yr' : 'mo'}</span></td>
         <td>${UI.formatDate(c.next_due_date)}</td>
         <td>${UI.statusBadge(c.billing_status === 'current' && c.status === 'active' ? 'active' :
               c.status !== 'active' ? c.status : c.billing_status)}</td>
         <td>
           <div class="table-actions">
-            <a href="client-detail.html?id=${c.id}" class="btn btn-ghost btn-sm btn-icon" title="View">👁</a>
+            <a href="client-detail.html?id=${c.id}" class="btn btn-ghost btn-sm btn-icon" title="View Detail">👁</a>
+            <a href="../client/dashboard.html?client_id=${c.id}" target="_blank" class="btn btn-ghost btn-sm btn-icon" title="Preview Client Dashboard">💻</a>
             <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="openEditModal('${c.id}')">✏️</button>
             <button class="btn btn-ghost btn-sm btn-icon" title="${c.status === 'paused' ? 'Reactivate' : 'Pause'}"
               onclick="togglePause('${c.id}', '${c.status}')">
@@ -278,7 +323,6 @@
     document.getElementById('client-form').reset();
     document.getElementById('edit-client-id').value = '';
     document.getElementById('f-start-date').value = new Date().toISOString().slice(0, 10);
-    document.getElementById('username-group').style.display = '';
     document.getElementById('start-date-group').style.display = '';
     document.getElementById('pwd-hint').textContent = 'Leave blank to auto-generate a secure password.';
     UI.openModal('client-modal');
@@ -288,7 +332,6 @@
   async function openEditModal(clientId) {
     document.getElementById('modal-title').textContent = 'Edit Client';
     document.getElementById('edit-client-id').value = clientId;
-    document.getElementById('username-group').style.display = 'none';
     document.getElementById('start-date-group').style.display = 'none';
     document.getElementById('pwd-hint').textContent = 'Enter a new password to change it, or leave blank to keep unchanged.';
     document.getElementById('f-password').value = '';
@@ -301,6 +344,7 @@
       document.getElementById('f-email').value = c.email || '';
       document.getElementById('f-whatsapp').value = c.whatsapp_number || '';
       document.getElementById('f-amount').value = c.monthly_amount || 1000;
+      document.getElementById('f-billing-cycle').value = c.billing_cycle || 'monthly';
       document.getElementById('f-status').value = c.status || 'active';
       UI.openModal('client-modal');
     } catch (err) {
@@ -321,11 +365,11 @@
       email:                  document.getElementById('f-email').value.trim(),
       whatsapp_number:        document.getElementById('f-whatsapp').value.trim() || null,
       monthly_amount:         parseFloat(document.getElementById('f-amount').value),
+      billing_cycle:          document.getElementById('f-billing-cycle').value,
       status:                 document.getElementById('f-status').value,
     };
 
     if (!isEdit) {
-      body.username = document.getElementById('f-username').value.trim().toLowerCase();
       body.subscription_start_date = document.getElementById('f-start-date').value;
     }
 
@@ -345,12 +389,11 @@
         UI.closeModal('client-modal');
         loadClients();
       } else {
-        if (!body.username) { UI.toast('Username is required', 'error'); UI.setLoading(btn, false); return; }
         const result = await API.clients.create(body);
         UI.closeModal('client-modal');
         // Show password modal
         document.getElementById('new-password-display').textContent = result.generated_password;
-        document.getElementById('new-username-display').textContent = result.username;
+        document.getElementById('new-username-display').textContent = result.email;
         UI.openModal('password-modal');
         loadClients();
       }
@@ -383,8 +426,6 @@
     const text = document.getElementById('new-password-display').textContent;
     navigator.clipboard.writeText(text).then(() => UI.toast('Password copied!', 'success'));
   }
-
-  loadClients();
 </script>
 </body>
 </html>

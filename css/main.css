@@ -99,6 +99,13 @@
 /* ── Reset & Base ──────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
 html { font-size: 16px; scroll-behavior: smooth; }
 
 body {
@@ -432,37 +439,36 @@ tbody td {
 
 /* ── Modals ─────────────────────────────────────────────────── */
 .modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.5);
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.75);
   backdrop-filter: blur(4px);
-  z-index: 1000;
-  display: flex;
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 99999;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  opacity: 0;
-  visibility: hidden;
-  transition: all var(--transition-normal);
 }
 
 .modal-overlay.open {
-  opacity: 1;
-  visibility: visible;
+  display: flex !important;
 }
 
 .modal {
-  background: #fff;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
   width: 100%;
-  max-width: 520px;
+  max-width: 580px;
   max-height: 90vh;
   overflow-y: auto;
-  transform: translateY(20px) scale(0.97);
-  transition: transform var(--transition-normal);
+  margin: auto;
 }
-
-.modal-overlay.open .modal { transform: translateY(0) scale(1); }
 
 .modal-header {
   padding: var(--space-6);
@@ -661,10 +667,11 @@ tbody td {
 @media (max-width: 768px) {
   .form-grid { grid-template-columns: 1fr; }
   .filter-bar { flex-direction: column; align-items: stretch; }
+  .modal { width: 95%; max-height: 85vh; margin: auto; }
 }
 
 @media (max-width: 480px) {
   h1 { font-size: 1.5rem; }
-  .modal { border-radius: var(--radius-lg); }
-  .modal-overlay { padding: var(--space-2); align-items: flex-end; }
+  .modal { border-radius: var(--radius-lg); width: 96%; max-height: 88vh; margin: auto; }
+  .modal-overlay { padding: var(--space-2); align-items: center; justify-content: center; }
 }

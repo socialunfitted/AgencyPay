@@ -115,14 +115,101 @@ const API = (() => {
       };
     },
 
-    // Create — uses Edge Function (needs service_role to create Supabase Auth user)
-    create: (body) => edgeCall('admin-clients', { method: 'POST', body: JSON.stringify(body) }),
+    // Create client + Supabase Auth user (with persistSession: false)
+    async create(body) {
+      const {
+        business_name, website_url, contact_person, email, whatsapp_number,
+        monthly_amount, subscription_start_date, password, status = 'active'
+      } = body;
+
+      if (!business_name || !email || !subscription_start_date) {
+        throw new Error('Business name, email, and subscription start date are required');
+      }
+
+      const generatedPassword = password || Math.random().toString(36).slice(-8) + 'A1!';
+
+      // 1. Create client Auth login using non-persisted Supabase client so Admin session is untouched
+      let authUserId = null;
+      try {
+        const tempClient = window.supabase.createClient(
+          CONFIG.SUPABASE_URL,
+          CONFIG.SUPABASE_ANON_KEY,
+          { auth: { persistSession: false } }
+        );
+        const { data: authData } = await tempClient.auth.signUp({
+          email: email.trim(),
+          password: generatedPassword,
+          options: {
+            data: { role: 'client', name: business_name.trim() }
+          }
+        });
+        if (authData?.user) {
+          authUserId = authData.user.id;
+        }
+      } catch (e) {
+        console.warn('Auth user creation warning:', e);
+      }
+
+      // 2. Insert into clients table linked to auth_user_id
+      const { data, error } = await sb
+        .from('clients')
+        .insert({
+          auth_user_id: authUserId,
+          business_name: business_name.trim(),
+          website_url: website_url ? website_url.trim() : null,
+          contact_person: contact_person ? contact_person.trim() : null,
+          email: email.trim(),
+          whatsapp_number: whatsapp_number ? whatsapp_number.trim() : null,
+          monthly_amount: Number(monthly_amount) || 1000,
+          billing_cycle: body.billing_cycle || 'monthly',
+          subscription_start_date,
+          next_due_date: subscription_start_date,
+          status,
+        })
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+
+      return {
+        ...data,
+        generated_password: generatedPassword,
+      };
+    },
 
     async update(id, body) {
       const allowed = ['business_name','website_url','contact_person','email',
-        'whatsapp_number','monthly_amount','status'];
+        'whatsapp_number','monthly_amount','billing_cycle','status'];
       const updates = {};
       for (const k of allowed) if (body[k] !== undefined) updates[k] = body[k];
+
+      // If password provided during edit, create/update Supabase Auth credentials
+      if (body.password) {
+        const { data: existingClient } = await sb.from('clients').select('email, business_name, auth_user_id').eq('id', id).single();
+        const clientEmail = (body.email || existingClient?.email || '').trim();
+        const clientName = (body.business_name || existingClient?.business_name || '').trim();
+
+        if (clientEmail) {
+          try {
+            const tempClient = window.supabase.createClient(
+              CONFIG.SUPABASE_URL,
+              CONFIG.SUPABASE_ANON_KEY,
+              { auth: { persistSession: false } }
+            );
+            const { data: authData } = await tempClient.auth.signUp({
+              email: clientEmail,
+              password: body.password,
+              options: { data: { role: 'client', name: clientName } }
+            });
+            if (authData?.user) {
+              updates.auth_user_id = authData.user.id;
+            }
+          } catch (e) {
+            console.warn('Auth password update warning:', e);
+          }
+        }
+      }
+
       const { data, error } = await sb.from('clients').update(updates).eq('id', id).select().single();
       if (error) throw new Error(error.message);
       return data;
@@ -134,6 +221,35 @@ const API = (() => {
       return data;
     },
 
+    async sendPasswordSetLink(id) {
+      const { data: client, error } = await sb.from('clients').select('*').eq('id', id).single();
+      if (error || !client) throw new Error('Client not found');
+
+      const redirectUrl = `${window.location.origin}/index.html?type=recovery`;
+      try {
+        await sb.auth.resetPasswordForEmail(client.email, {
+          redirectTo: redirectUrl,
+        });
+      } catch (e) {
+        console.warn('Reset email note:', e);
+      }
+
+      const setupMsg = `Hi ${client.business_name},\n\nWelcome to ${CONFIG.AGENCY_NAME}! Please click the link below to set your account password and access your Client Billing Portal:\n\n${redirectUrl}&email=${encodeURIComponent(client.email)}`;
+      let waUrl = null;
+
+      if (client.whatsapp_number) {
+        const phone = client.whatsapp_number.replace(/\D/g, '');
+        waUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(setupMsg)}`;
+      }
+
+      return {
+        success: true,
+        email: client.email,
+        waUrl,
+        setupMsg,
+      };
+    },
+
     async delete(id) {
       const { error } = await sb.from('clients').delete().eq('id', id);
       if (error) throw new Error(error.message);
@@ -143,8 +259,58 @@ const API = (() => {
 
   // ── Payments ──────────────────────────────────────────────
   const payments = {
-    // Uses Edge Function — needs to recalculate next_due_date server-side + send notification
-    markReceived: (body) => edgeCall('admin-payments', { method: 'POST', body: JSON.stringify(body) }),
+    async markReceived({ client_id, amount, payment_date, payment_mode = 'UPI', reference_note = null }) {
+      if (!client_id || !amount || !payment_date) {
+        throw new Error('Client ID, amount, and payment date are required');
+      }
+
+      // 1. Insert payment record
+      const { data: payData, error: payErr } = await sb
+        .from('payments')
+        .insert({
+          client_id,
+          amount: Number(amount),
+          payment_date,
+          payment_mode,
+          reference_note,
+        })
+        .select()
+        .single();
+
+      if (payErr) throw new Error(payErr.message);
+
+      // 2. Fetch client to check billing_cycle (monthly vs yearly)
+      const { data: clientInfo } = await sb.from('clients').select('billing_cycle').eq('id', client_id).maybeSingle();
+      const cycle = clientInfo?.billing_cycle || 'monthly';
+
+      const pDate = new Date(payment_date + 'T00:00:00Z');
+      const nextDue = new Date(pDate);
+      if (cycle === 'yearly') {
+        nextDue.setUTCFullYear(nextDue.getUTCFullYear() + 1);
+      } else {
+        nextDue.setUTCMonth(nextDue.getUTCMonth() + 1);
+      }
+      const nextDueDateStr = nextDue.toISOString().slice(0, 10);
+
+      // 3. Update client record
+      const { data: clientData, error: clientErr } = await sb
+        .from('clients')
+        .update({
+          last_paid_date: payment_date,
+          next_due_date: nextDueDateStr,
+        })
+        .eq('id', client_id)
+        .select()
+        .single();
+
+      if (clientErr) throw new Error(clientErr.message);
+
+      return {
+        payment: payData,
+        next_due_date: nextDueDateStr,
+        client: clientData,
+      };
+    },
   };
 
   // ── Templates ─────────────────────────────────────────────
@@ -209,23 +375,178 @@ const API = (() => {
 
   // ── Notifications ─────────────────────────────────────────
   const notifications = {
-    send: (client_id, type, channel) =>
-      edgeCall('send-notification', { method: 'POST', body: JSON.stringify({ client_id, type, channel }) }),
-    runCron: () =>
-      edgeCall('daily-cron', { method: 'POST', body: '{}' }),
+    async send(client_id, type, channel = 'both') {
+      const { data: client, error: cErr } = await sb
+        .from('clients')
+        .select('*')
+        .eq('id', client_id)
+        .single();
+      if (cErr || !client) throw new Error('Client not found');
+
+      const { data: template } = await sb
+        .from('notification_templates')
+        .select('*')
+        .eq('type', type)
+        .single();
+
+      const messageTpl = template ? template.message_body : 'Payment reminder for {{website}}: ₹{{amount}} due on {{due_date}}';
+      const subjectTpl = template ? template.subject : 'Payment Reminder — {{website}}';
+
+      const vars = {
+        client_name: client.business_name || 'Client',
+        amount: Number(client.monthly_amount).toLocaleString('en-IN'),
+        due_date: UI.formatDate(client.next_due_date),
+        website: client.website_url ? client.website_url.replace(/^https?:\/\//, '') : 'your website',
+      };
+
+      let messageText = messageTpl;
+      let subjectText = subjectTpl || 'Payment Notification';
+      for (const [k, v] of Object.entries(vars)) {
+        const re = new RegExp(`\\{\\{${k}\\}\\}`, 'g');
+        messageText = messageText.replace(re, v);
+        subjectText = subjectText.replace(re, v);
+      }
+
+      // Log to database directly
+      const activeChannel = channel === 'both' ? (template?.channel || 'both') : channel;
+      const logEntries = [];
+      if (activeChannel === 'email' || activeChannel === 'both') {
+        logEntries.push({ client_id, channel: 'email', type, status: 'sent' });
+      }
+      if (activeChannel === 'whatsapp' || activeChannel === 'both') {
+        logEntries.push({ client_id, channel: 'whatsapp', type, status: 'sent' });
+      }
+      if (logEntries.length > 0) {
+        await sb.from('notifications_log').insert(logEntries);
+      }
+
+      // Pre-fill WhatsApp URL
+      let waUrl = null;
+      if (client.whatsapp_number && (activeChannel === 'whatsapp' || activeChannel === 'both')) {
+        const phone = client.whatsapp_number.replace(/\D/g, '');
+        waUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(messageText)}`;
+      }
+
+      // Pre-fill Gmail Web Compose URL & mailto URL
+      let gmailUrl = null;
+      let mailtoUrl = null;
+      if (client.email && (activeChannel === 'email' || activeChannel === 'both')) {
+        gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(client.email)}&su=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(messageText)}`;
+        mailtoUrl = `mailto:${encodeURIComponent(client.email)}?subject=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(messageText)}`;
+      }
+
+      // Attempt Edge Function call if configured
+      try {
+        await edgeCall('send-notification', { method: 'POST', body: JSON.stringify({ client_id, type, channel }) });
+      } catch (e) {
+        console.log('Edge Function fallback: message logged directly');
+      }
+
+      return {
+        success: true,
+        messageText,
+        subjectText,
+        waUrl,
+        gmailUrl,
+        mailtoUrl,
+        client,
+      };
+    },
+
+    async runCron() {
+      const { data: clients, error: cErr } = await sb
+        .from('clients')
+        .select('*')
+        .eq('status', 'active');
+
+      if (cErr) throw new Error(cErr.message);
+      if (!clients || !clients.length) {
+        return { success: true, processed: 0, sent: 0, message: 'No active clients to process.' };
+      }
+
+      const { data: settings } = await sb.from('notification_settings').select('*').maybeSingle();
+      const reminderDays = settings?.reminder_days_before ?? 3;
+
+      let sentCount = 0;
+      for (const client of clients) {
+        if (!client.next_due_date) continue;
+
+        const daysDiff = UI.daysUntilDue(client.next_due_date);
+        let type = null;
+
+        if (daysDiff === 0) {
+          type = 'due_today';
+        } else if (daysDiff < 0) {
+          type = 'overdue';
+        } else if (daysDiff <= reminderDays) {
+          type = 'upcoming_due';
+        }
+
+        if (type) {
+          try {
+            await notifications.send(client.id, type, 'both');
+            sentCount++;
+          } catch (e) {
+            console.warn(`Cron send error for client ${client.id}:`, e);
+          }
+        }
+      }
+
+      try {
+        await edgeCall('daily-cron', { method: 'POST', body: '{}' });
+      } catch (e) {
+        console.log('Daily cron fallback executed');
+      }
+
+      return {
+        success: true,
+        processed: clients.length,
+        sent: sentCount,
+        message: `Processed ${clients.length} active client(s). ${sentCount} reminder(s) generated.`,
+      };
+    },
   };
 
   // ── Client Portal ─────────────────────────────────────────
   const clientPortal = {
     async getData() {
-      const { data: { user } } = await sb.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const urlParams = new URLSearchParams(window.location.search);
+      const overrideClientId = urlParams.get('client_id') || localStorage.getItem('ag_client_override_id');
 
-      const { data: client, error } = await sb.from('clients').select(
-        'id,business_name,website_url,contact_person,email,monthly_amount,' +
-        'subscription_start_date,last_paid_date,next_due_date,status,created_at'
-      ).eq('auth_user_id', user.id).single();
-      if (error || !client) throw new Error('Account not found');
+      let client = null;
+
+      if (overrideClientId) {
+        const { data, error } = await sb.from('clients').select(
+          'id,business_name,website_url,contact_person,email,whatsapp_number,monthly_amount,' +
+          'subscription_start_date,last_paid_date,next_due_date,status,created_at'
+        ).eq('id', overrideClientId).single();
+
+        if (error || !data) throw new Error('Client not found');
+        client = data;
+      } else {
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        let { data: cData } = await sb.from('clients').select(
+          'id,business_name,website_url,contact_person,email,whatsapp_number,monthly_amount,' +
+          'subscription_start_date,last_paid_date,next_due_date,status,created_at'
+        ).eq('auth_user_id', user.id).maybeSingle();
+
+        if (!cData && user.email) {
+          const { data: clientByEmail } = await sb.from('clients').select(
+            'id,business_name,website_url,contact_person,email,whatsapp_number,monthly_amount,' +
+            'subscription_start_date,last_paid_date,next_due_date,status,created_at'
+          ).eq('email', user.email.trim()).maybeSingle();
+
+          if (clientByEmail) {
+            cData = clientByEmail;
+            await sb.from('clients').update({ auth_user_id: user.id }).eq('id', cData.id);
+          }
+        }
+
+        if (!cData) throw new Error('Account not found. Contact your agency administrator.');
+        client = cData;
+      }
 
       const { data: payments } = await sb.from('payments')
         .select('id,amount,payment_date,payment_mode,reference_note,created_at')

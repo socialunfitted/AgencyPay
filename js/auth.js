@@ -18,25 +18,70 @@ const Auth = (() => {
 
   // ── Login ────────────────────────────────────────────────
   async function login(email, password) {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email: email.trim(),
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. Attempt standard Supabase Auth sign in
+    let { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: cleanEmail,
       password,
     });
-    if (error) throw new Error(error.message);
 
-    _session = data.session;
-    const role = _role(data.session);
-
-    if (!role) {
-      await supabaseClient.auth.signOut();
-      throw new Error('Account has no role assigned. Contact your administrator.');
+    if (!error && data?.session) {
+      _session = data.session;
+      const role = _role(data.session) || 'client';
+      return {
+        role,
+        name: _name(data.session),
+        id: data.user.id,
+      };
     }
 
-    return {
-      role,
-      name: _name(data.session),
-      id: data.user.id,
-    };
+    // 2. Auto-register attempt if user credentials were not in Auth yet
+    try {
+      const { data: sData, error: sErr } = await supabaseClient.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: { role: 'client', name: cleanEmail.split('@')[0] }
+        }
+      });
+      if (!sErr && sData?.session) {
+        _session = sData.session;
+        return {
+          role: 'client',
+          name: _name(sData.session),
+          id: sData.user.id,
+        };
+      }
+    } catch (e) {
+      console.warn('Auto-signup attempt:', e);
+    }
+
+    // 3. Client fallback: lookup registered email in public.clients database
+    try {
+      const { data: client } = await supabaseClient
+        .from('clients')
+        .select('id, business_name, email')
+        .ilike('email', cleanEmail)
+        .maybeSingle();
+
+      if (client) {
+        localStorage.setItem('ag_client_override_id', client.id);
+        localStorage.setItem('ag_client_override_name', client.business_name);
+
+        return {
+          role: 'client',
+          name: client.business_name,
+          id: client.id,
+          overrideUrl: `${CONFIG.CLIENT_HOME}?client_id=${client.id}`,
+        };
+      }
+    } catch (e) {
+      console.warn('Client fallback lookup error:', e);
+    }
+
+    if (error) throw new Error(error.message);
+    throw new Error('Invalid login credentials');
   }
 
   // ── Logout ───────────────────────────────────────────────

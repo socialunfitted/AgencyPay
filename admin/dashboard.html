@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — AgencyPay Admin</title>
   <meta name="description" content="Admin dashboard — overview of revenue, clients, and billing status.">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/admin.css">
 </head>
@@ -77,15 +78,23 @@
 <script src="../js/auth.js"></script>
 <script src="../js/api.js"></script>
 <script>
-  Auth.requireAuth('admin');
+  (async () => {
+    if (!await Auth.requireAuth('admin')) return;
 
-  // ── Sidebar ────────────────────────────────────────────────
-  fetch('_sidebar.html').then(r => r.text()).then(html => {
-    document.getElementById('sidebar-mount').innerHTML = html;
-    document.getElementById('nav-dashboard').classList.add('active');
-    document.getElementById('admin-name').textContent = Auth.getName();
-    document.getElementById('admin-avatar').textContent = UI.initials(Auth.getName());
-  });
+    fetch('_sidebar.html').then(r => r.text()).then(html => {
+      document.getElementById('sidebar-mount').innerHTML = html;
+      document.getElementById('nav-dashboard').classList.add('active');
+      document.getElementById('mnav-dashboard')?.classList.add('active');
+      document.getElementById('admin-name').textContent = Auth.getName();
+      document.getElementById('admin-avatar').textContent = UI.initials(Auth.getName());
+    });
+
+    document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-IN', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
+
+    loadDashboard();
+  })();
 
   function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
@@ -95,11 +104,6 @@
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebar-overlay').classList.remove('open');
   }
-
-  // ── Today date ─────────────────────────────────────────────
-  document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-IN', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
 
   // ── Load stats ─────────────────────────────────────────────
   async function loadDashboard() {
@@ -194,16 +198,16 @@
   // Quick-list responsive layout fix
   function fixLayout() {
     const grid = document.getElementById('quick-lists');
-    if (window.innerWidth < 768) {
-      grid.style.gridTemplateColumns = '1fr';
-    } else {
-      grid.style.gridTemplateColumns = '1fr 1fr';
+    if (grid) {
+      if (window.innerWidth < 768) {
+        grid.style.gridTemplateColumns = '1fr';
+      } else {
+        grid.style.gridTemplateColumns = '1fr 1fr';
+      }
     }
   }
   window.addEventListener('resize', fixLayout);
   fixLayout();
-
-  loadDashboard();
 </script>
 </body>
 </html>

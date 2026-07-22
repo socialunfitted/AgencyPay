@@ -5,9 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Client Detail — AgencyPay Admin</title>
   <meta name="description" content="Client profile, payment history, and billing actions.">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/admin.css">
   <style>
+    .modal-overlay {
+      display: none !important;
+    }
+    .modal-overlay.open {
+      display: flex !important;
+      position: fixed !important;
+      top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+      width: 100vw !important; height: 100vh !important;
+      background: rgba(15, 23, 42, 0.8) !important;
+      z-index: 999999 !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 16px !important;
+    }
+    .modal-overlay.open .modal {
+      display: block !important;
+      background: #ffffff !important;
+      color: #0f172a !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      z-index: 1000000 !important;
+      position: relative !important;
+      margin: auto !important;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+      border: 1px solid #cbd5e1 !important;
+      border-radius: 16px !important;
+      width: 100% !important;
+      max-width: 580px !important;
+      max-height: 88vh !important;
+      overflow-y: auto !important;
+    }
+
     .profile-header {
       display: flex;
       align-items: center;
@@ -169,17 +202,27 @@
 <script src="../js/auth.js"></script>
 <script src="../js/api.js"></script>
 <script>
-  Auth.requireAuth('admin');
+  let clientId = null;
+  let currentClient = null;
 
-  const clientId = new URLSearchParams(location.search).get('id');
-  if (!clientId) location.href = 'clients.html';
+  (async () => {
+    if (!await Auth.requireAuth('admin')) return;
 
-  fetch('_sidebar.html').then(r => r.text()).then(html => {
-    document.getElementById('sidebar-mount').innerHTML = html;
-    document.getElementById('nav-clients').classList.add('active');
-    document.getElementById('admin-name').textContent = Auth.getName();
-    document.getElementById('admin-avatar').textContent = UI.initials(Auth.getName());
-  });
+    clientId = new URLSearchParams(location.search).get('id');
+    if (!clientId) { location.href = 'clients.html'; return; }
+
+    fetch('_sidebar.html').then(r => r.text()).then(html => {
+      document.getElementById('sidebar-mount').innerHTML = html;
+      document.getElementById('nav-clients').classList.add('active');
+      document.getElementById('admin-name').textContent = Auth.getName();
+      document.getElementById('admin-avatar').textContent = UI.initials(Auth.getName());
+    });
+
+    const pDateInput = document.getElementById('p-date');
+    if (pDateInput) pDateInput.value = new Date().toISOString().slice(0, 10);
+
+    loadClient();
+  })();
 
   function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
@@ -189,11 +232,6 @@
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebar-overlay').classList.remove('open');
   }
-
-  // Pre-fill payment form
-  document.getElementById('p-date').value = new Date().toISOString().slice(0, 10);
-
-  let currentClient = null;
 
   async function loadClient() {
     try {
@@ -227,7 +265,7 @@
         <div style="text-align:right; flex-shrink:0">
           <div style="opacity:0.7; font-size:0.8125rem">Next Due</div>
           <div style="font-family:var(--font-display); font-size:1.5rem; font-weight:800">${UI.formatDate(c.next_due_date)}</div>
-          <div style="font-size:1.25rem; font-weight:700; opacity:0.9">${UI.formatRupees(c.monthly_amount)}/mo</div>
+          <div style="font-size:1.25rem; font-weight:700; opacity:0.9">${UI.formatRupees(c.monthly_amount)} / ${c.billing_cycle === 'yearly' ? 'year' : 'month'}</div>
         </div>
       </div>
 
@@ -235,6 +273,8 @@
       <div class="action-bar">
         <button class="btn btn-success" onclick="UI.openModal('payment-modal')">💰 Mark Payment Received</button>
         <button class="btn btn-secondary" onclick="UI.openModal('reminder-modal')">📨 Send Reminder</button>
+        <button class="btn btn-secondary" onclick="sendPasswordSetupLink('${c.id}')">🔑 Send Password Setup Link</button>
+        <a href="../client/dashboard.html?client_id=${c.id}" target="_blank" class="btn btn-secondary">👁️ View Client Portal</a>
         <button class="btn btn-secondary" onclick="togglePause('${c.id}', '${c.status}')">
           ${c.status === 'paused' ? '▶️ Reactivate' : '⏸️ Pause Account'}
         </button>
@@ -245,10 +285,6 @@
         <div class="info-block">
           <div class="info-label">Contact Person</div>
           <div class="info-value">${c.contact_person || '—'}</div>
-        </div>
-        <div class="info-block">
-          <div class="info-label">Username</div>
-          <div class="info-value" style="font-family:monospace">${c.username}</div>
         </div>
         <div class="info-block">
           <div class="info-label">Subscription Start</div>
@@ -336,9 +372,16 @@
     const channel = document.getElementById('r-channel').value;
     UI.setLoading(btn, true);
     try {
-      await API.notifications.send(clientId, type, channel);
-      UI.toast('Reminder sent successfully!', 'success');
+      const res = await API.notifications.send(clientId, type, channel);
+      UI.toast('Reminder logged successfully!', 'success');
       UI.closeModal('reminder-modal');
+
+      if (res.waUrl) {
+        window.open(res.waUrl, '_blank');
+      }
+      if (res.gmailUrl) {
+        window.open(res.gmailUrl, '_blank');
+      }
     } catch (err) {
       UI.toast('Error: ' + err.message, 'error');
     } finally {
@@ -357,7 +400,17 @@
     }
   }
 
-  loadClient();
+  async function sendPasswordSetupLink(id) {
+    try {
+      const res = await API.clients.sendPasswordSetLink(id);
+      UI.toast(`Password setup link sent to ${res.email}!`, 'success');
+      if (res.waUrl) {
+        window.open(res.waUrl, '_blank');
+      }
+    } catch (err) {
+      UI.toast('Error sending setup link: ' + err.message, 'error');
+    }
+  }
 </script>
 </body>
 </html>

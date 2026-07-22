@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Subscription — AgencyPay</title>
   <meta name="description" content="View your website subscription status, next due date, and payment history.">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/client.css">
 </head>
@@ -21,6 +22,12 @@
       </div>
     </div>
     <div class="client-header-right">
+      <button class="btn btn-secondary btn-sm" onclick="UI.openModal('change-pwd-modal')" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.25)">
+        🔒 Change Password
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="UI.openModal('support-modal')" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.25)">
+        💬 Support & Request
+      </button>
       <div class="client-name-pill">
         <div class="client-avatar" id="client-avatar">?</div>
         <span id="client-name-pill">My Account</span>
@@ -38,67 +45,330 @@
   <!-- Main Content (hidden until loaded) -->
   <div id="main-portal" style="display:none">
     <div class="client-container">
+      <div class="client-portal-shell">
 
-      <!-- Hero: Subscription Status Card -->
-      <div class="subscription-hero" id="hero-card">
-        <div class="hero-accent-bar" id="hero-bar"></div>
-        <div class="hero-body">
-          <div class="hero-top">
-            <div>
-              <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--color-gray-400); margin-bottom:4px">Your Subscription</div>
-              <h1 id="hero-business-name" style="font-size:1.5rem; font-weight:800; margin-bottom:4px">—</h1>
-              <div class="hero-website" id="hero-website"></div>
+        <!-- Desktop Client Left Sidebar Menu -->
+        <div class="client-tabs-nav">
+          <div style="padding: 6px 12px 10px; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--color-gray-400)">Portal Menu</div>
+          <button class="client-tab-btn active" id="tabbtn-overview" onclick="switchClientTab('overview')">
+            📊 Overview
+          </button>
+          <button class="client-tab-btn" id="tabbtn-history" onclick="switchClientTab('history')">
+            💳 Receipts & History
+          </button>
+          <button class="client-tab-btn" id="tabbtn-support" onclick="switchClientTab('support')">
+            💬 Support & Requests
+          </button>
+          <button class="client-tab-btn" id="tabbtn-account" onclick="switchClientTab('account')">
+            🔒 Account & Security
+          </button>
+        </div>
+
+        <!-- Main Tab Content Area -->
+        <div class="client-portal-content">
+
+      <!-- TAB 1: OVERVIEW -->
+      <div id="tab-overview" class="tab-pane">
+        <!-- Hero: Subscription Status Card -->
+        <div class="subscription-hero" id="hero-card">
+          <div class="hero-accent-bar" id="hero-bar"></div>
+          <div class="hero-body">
+            <div class="hero-top">
+              <div>
+                <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--color-gray-400); margin-bottom:4px">Your Subscription</div>
+                <h1 id="hero-business-name" style="font-size:1.5rem; font-weight:800; margin-bottom:4px">—</h1>
+                <div class="hero-website" id="hero-website"></div>
+              </div>
+              <div id="hero-status-badge"></div>
             </div>
-            <div id="hero-status-badge"></div>
+
+            <div class="payment-card-grid" id="payment-grid">
+              <div class="payment-info-block">
+                <div class="info-label">Subscription Amount</div>
+                <div class="info-value" id="hero-amount">—</div>
+                <div class="info-sub">active plan</div>
+              </div>
+              <div class="payment-info-block">
+                <div class="info-label">Next Due Date</div>
+                <div class="info-value" id="hero-due-date">—</div>
+                <div id="hero-countdown" class="countdown-badge" style="margin-top:6px">—</div>
+              </div>
+              <div class="payment-info-block">
+                <div class="info-label">Last Paid</div>
+                <div class="info-value" id="hero-last-paid">—</div>
+                <div class="info-sub" id="hero-start-date"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment & Agency Details Grid -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);" id="quick-grid">
+          
+          <!-- How to Pay Card -->
+          <div class="card" style="margin-bottom:0">
+            <div style="font-weight:700; font-size:1rem; color:var(--color-gray-900); margin-bottom:var(--space-3); display:flex; align-items:center; justify-content:space-between">
+              <span>📲 How to Pay</span>
+              <span class="badge badge-active">UPI / Bank Transfer</span>
+            </div>
+            <p style="font-size:0.875rem; color:var(--color-gray-600); margin-bottom:var(--space-4)">
+              Pay your website subscription directly using UPI or Bank Transfer:
+            </p>
+            <div style="background:var(--color-gray-50); border:1px solid var(--color-gray-200); padding:12px; border-radius:var(--radius-md); font-size:0.875rem; display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-3)">
+              <div>
+                <div style="font-size:0.75rem; color:var(--color-gray-500)">Agency UPI ID</div>
+                <strong style="font-family:monospace; font-size:0.9375rem" id="upi-id-display">agency@upi</strong>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="copyUpiId()">📋 Copy</button>
+            </div>
+            <div style="display:flex; gap: var(--space-2)">
+              <a href="upi://pay?pa=agency@upi&pn=AgencyPay" class="btn btn-primary btn-sm" style="flex:1; justify-content:center; text-decoration:none">
+                📱 Open UPI App
+              </a>
+              <button class="btn btn-secondary btn-sm" onclick="switchClientTab('support')">💬 Contact Agency</button>
+            </div>
           </div>
 
-          <div class="payment-card-grid" id="payment-grid">
-            <div class="payment-info-block">
-              <div class="info-label">Monthly Amount</div>
-              <div class="info-value" id="hero-amount">—</div>
-              <div class="info-sub">per month</div>
+          <!-- Account Profile Details Card -->
+          <div class="card" style="margin-bottom:0">
+            <div style="font-weight:700; font-size:1rem; color:var(--color-gray-900); margin-bottom:var(--space-3); display:flex; align-items:center; justify-content:space-between">
+              <span>👤 Account Summary</span>
+              <button class="btn btn-secondary btn-sm" onclick="switchClientTab('account')">🔒 Security</button>
             </div>
-            <div class="payment-info-block">
-              <div class="info-label">Next Due Date</div>
-              <div class="info-value" id="hero-due-date">—</div>
-              <div id="hero-countdown" class="countdown-badge" style="margin-top:6px">—</div>
+            <div style="display:flex; flex-direction:column; gap:var(--space-2); font-size:0.875rem">
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--color-gray-100); padding-bottom:6px">
+                <span style="color:var(--color-gray-500)">Contact Person</span>
+                <strong id="prof-contact">—</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--color-gray-100); padding-bottom:6px">
+                <span style="color:var(--color-gray-500)">Email</span>
+                <strong id="prof-email">—</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--color-gray-100); padding-bottom:6px">
+                <span style="color:var(--color-gray-500)">WhatsApp</span>
+                <strong id="prof-whatsapp">—</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding-top:2px">
+                <span style="color:var(--color-gray-500)">Website Status</span>
+                <span class="badge badge-active">Live & Monitored</span>
+              </div>
             </div>
-            <div class="payment-info-block">
-              <div class="info-label">Last Paid</div>
-              <div class="info-value" id="hero-last-paid">—</div>
-              <div class="info-sub" id="hero-start-date"></div>
-            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- TAB 2: RECEIPTS & HISTORY -->
+      <div id="tab-history" class="tab-pane" style="display:none">
+        <!-- Monthly History Strip -->
+        <div class="monthly-strip-card" id="monthly-strip-section" style="margin-bottom:var(--space-6)">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--space-2)">
+            <div class="card-title" style="font-size:1rem">📅 Payment History — Last 12 Months</div>
+          </div>
+          <div class="monthly-strip" id="monthly-strip"></div>
+          <div class="strip-legend">
+            <div class="strip-legend-item"><div class="legend-dot paid"></div> Paid</div>
+            <div class="strip-legend-item"><div class="legend-dot unpaid"></div> Unpaid</div>
+            <div class="strip-legend-item"><div class="legend-dot upcoming"></div> Upcoming</div>
+          </div>
+        </div>
+
+        <!-- Payment History Table -->
+        <div class="payment-history-card">
+          <div class="card-header" style="padding: var(--space-5) var(--space-6) var(--space-4)">
+            <span class="card-title">💳 Official Payment Receipts</span>
+            <span id="payment-count" style="font-size:0.8125rem; color:var(--color-gray-500)">0 payments</span>
+          </div>
+          <div class="table-wrapper" id="payment-table-wrapper">
+            <div class="page-loader"><div class="loader"></div></div>
           </div>
         </div>
       </div>
 
-      <!-- Monthly History Strip -->
-      <div class="monthly-strip-card" id="monthly-strip-section">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--space-2)">
-          <div class="card-title" style="font-size:1rem">📅 Payment History — Last 12 Months</div>
-        </div>
-        <div class="monthly-strip" id="monthly-strip"></div>
-        <div class="strip-legend">
-          <div class="strip-legend-item"><div class="legend-dot paid"></div> Paid</div>
-          <div class="strip-legend-item"><div class="legend-dot unpaid"></div> Unpaid</div>
-          <div class="strip-legend-item"><div class="legend-dot upcoming"></div> Upcoming</div>
+      <!-- TAB 3: SUPPORT & REQUESTS -->
+      <div id="tab-support" class="tab-pane" style="display:none">
+        <div class="card">
+          <div style="font-weight:700; font-size:1.1rem; color:var(--color-gray-900); margin-bottom:var(--space-2)">
+            💬 Contact Agency Support
+          </div>
+          <p style="font-size:0.875rem; color:var(--color-gray-600); margin-bottom:var(--space-5)">
+            Need a website content update, image change, or technical assistance? Submit your request directly to <strong>Social.Unfitted</strong> on WhatsApp:
+          </p>
+          <div class="form-group" style="margin-bottom: var(--space-4)">
+            <label class="form-label">Request Type</label>
+            <select id="tab-supp-type" class="form-select">
+              <option value="Website Content / Image Update">Website Content / Image Update</option>
+              <option value="Technical Issue / Bug Report">Technical Issue / Bug Report</option>
+              <option value="Billing / Payment Question">Billing / Payment Question</option>
+              <option value="New Feature Request">New Feature Request</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: var(--space-5)">
+            <label class="form-label">Details / Notes</label>
+            <textarea id="tab-supp-notes" class="form-textarea" rows="4" placeholder="Describe what you need updated on your website..."></textarea>
+          </div>
+          <div style="display:flex; justify-content:flex-end">
+            <button class="btn btn-primary" onclick="sendTabSupportRequest()">
+              📲 Submit & Open WhatsApp (+91 9003490495)
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Payment History Table -->
-      <div class="payment-history-card">
-        <div class="card-header" style="padding: var(--space-5) var(--space-6) var(--space-4)">
-          <span class="card-title">💳 Payment History</span>
-          <span id="payment-count" style="font-size:0.8125rem; color:var(--color-gray-500)">0 payments</span>
-        </div>
-        <div class="table-wrapper" id="payment-table-wrapper">
-          <div class="page-loader"><div class="loader"></div></div>
-        </div>
-      </div>
+      <!-- TAB 4: ACCOUNT & SECURITY -->
+      <div id="tab-account" class="tab-pane" style="display:none">
+        <div class="card">
+          <div style="font-weight:700; font-size:1.1rem; color:var(--color-gray-900); margin-bottom:var(--space-4)">
+            🔒 Change Your Password
+          </div>
+          <p style="font-size:0.875rem; color:var(--color-gray-600); margin-bottom:var(--space-4)">
+            Enter a new password below to update your login credentials:
+          </p>
+          <div class="form-group" style="margin-bottom:var(--space-3)">
+            <label class="form-label">New Password</label>
+            <input type="password" id="tab-new-password" class="form-input" placeholder="Enter new password (min 6 chars)" autocomplete="new-password">
+          </div>
+          <div class="form-group" style="margin-bottom:var(--space-5)">
+            <label class="form-label">Confirm New Password</label>
+            <input type="password" id="tab-confirm-password" class="form-input" placeholder="Confirm new password" autocomplete="new-password">
+          </div>
+          <div style="display:flex; justify-content:flex-end">
+            <button class="btn btn-primary" id="tab-btn-update-pwd" onclick="updateTabClientPassword()">Save New Password</button>
+          </div>
+        </div><!-- /.client-portal-content -->
+      </div><!-- /.client-portal-shell -->
+    </div><!-- /.client-container -->
+  </div><!-- /#main-portal -->
 
-    </div>
+  <!-- Mobile & Tablet Fixed Bottom Navigation Bar -->
+  <div class="client-bottom-nav">
+    <button class="client-bottom-item active" id="mbot-overview" onclick="switchClientTab('overview')">
+      <span style="font-size:1.25rem; line-height:1">📊</span>
+      <span>Overview</span>
+    </button>
+    <button class="client-bottom-item" id="mbot-history" onclick="switchClientTab('history')">
+      <span style="font-size:1.25rem; line-height:1">💳</span>
+      <span>Receipts</span>
+    </button>
+    <button class="client-bottom-item" id="mbot-support" onclick="switchClientTab('support')">
+      <span style="font-size:1.25rem; line-height:1">💬</span>
+      <span>Support</span>
+    </button>
+    <button class="client-bottom-item" id="mbot-account" onclick="switchClientTab('account')">
+      <span style="font-size:1.25rem; line-height:1">🔒</span>
+      <span>Security</span>
+    </button>
   </div>
 
+<!-- ── Support & Service Request Modal ─────────────────────────────── -->
+<div class="modal-overlay" id="support-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3>💬 Contact Agency Support</h3>
+      <button class="modal-close" onclick="UI.closeModal('support-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.875rem; color:var(--color-gray-600); margin-bottom: var(--space-4)">
+        Need a website update, design change, or have a question about your subscription? Send a direct request below:
+      </p>
+      <div class="form-group" style="margin-bottom: var(--space-3)">
+        <label class="form-label">Request Type</label>
+        <select id="supp-type" class="form-select">
+          <option value="Website Content / Image Update">Website Content / Image Update</option>
+          <option value="Technical Issue / Bug Report">Technical Issue / Bug Report</option>
+          <option value="Billing / Payment Question">Billing / Payment Question</option>
+          <option value="New Feature Request">New Feature Request</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Details / Notes</label>
+        <textarea id="supp-notes" class="form-textarea" rows="4" placeholder="Describe what you need updated on your website..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="UI.closeModal('support-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="sendSupportRequest()">📲 Submit & Open WhatsApp</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Printable Digital Receipt Modal ────────────────────────────── -->
+<div class="modal-overlay" id="receipt-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3>🧾 Official Payment Receipt</h3>
+      <button class="modal-close" onclick="UI.closeModal('receipt-modal')">×</button>
+    </div>
+    <div class="modal-body" id="receipt-print-area" style="padding:var(--space-6)">
+      <div style="text-align:center; border-bottom:2px dashed var(--color-gray-200); padding-bottom:var(--space-4); margin-bottom:var(--space-4)">
+        <div style="font-size:2rem; margin-bottom:4px">💳</div>
+        <h2 style="font-size:1.25rem; font-weight:800; color:var(--color-gray-900)" id="rcpt-agency-name">AgencyPay</h2>
+        <p style="font-size:0.75rem; color:var(--color-gray-500)">Official Subscription Payment Receipt</p>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; font-size:0.875rem; margin-bottom:var(--space-6)">
+        <div style="display:flex; justify-content:space-between">
+          <span style="color:var(--color-gray-500)">Receipt No:</span>
+          <strong style="font-family:monospace" id="rcpt-no">#RCPT-0000</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between">
+          <span style="color:var(--color-gray-500)">Client Business:</span>
+          <strong id="rcpt-client-name">—</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between">
+          <span style="color:var(--color-gray-500)">Payment Date:</span>
+          <strong id="rcpt-date">—</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between">
+          <span style="color:var(--color-gray-500)">Payment Mode:</span>
+          <strong id="rcpt-mode">—</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between">
+          <span style="color:var(--color-gray-500)">Reference / Note:</span>
+          <strong id="rcpt-ref">—</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; border-top:1px solid var(--color-gray-200); padding-top:10px; font-size:1.1rem">
+          <span>Total Amount Paid:</span>
+          <strong style="color:var(--color-success-600)" id="rcpt-amount">₹0</strong>
+        </div>
+      </div>
+
+      <div style="background:var(--color-success-50); border:1px solid var(--color-success-200); border-radius:var(--radius-md); padding:10px; text-align:center; font-size:0.8125rem; color:var(--color-success-700); font-weight:600">
+        ✅ VERIFIED & COMPLETED
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="UI.closeModal('receipt-modal')">Close</button>
+      <button class="btn btn-primary" onclick="window.print()">🖨️ Print Receipt</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Change Password Modal ────────────────────────────── -->
+<div class="modal-overlay" id="change-pwd-modal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3>🔒 Change Password</h3>
+      <button class="modal-close" onclick="UI.closeModal('change-pwd-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.875rem; color:var(--color-gray-600); margin-bottom:var(--space-4)">
+        Enter your new password below to update your login password.
+      </p>
+      <div class="form-group" style="margin-bottom:var(--space-3)">
+        <label class="form-label">New Password</label>
+        <input type="password" id="c-new-password" class="form-input" placeholder="Enter new password (min 6 chars)" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <input type="password" id="c-confirm-password" class="form-input" placeholder="Confirm new password" autocomplete="new-password">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="UI.closeModal('change-pwd-modal')">Cancel</button>
+      <button class="btn btn-primary" id="btn-update-pwd" onclick="updateClientPassword()">Save New Password</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast-container" class="toast-container"></div>
@@ -107,11 +377,21 @@
 <script src="../js/auth.js"></script>
 <script src="../js/api.js"></script>
 <script>
-  Auth.requireAuth('client');
+  let currentPortalData = null;
+
+  (async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const overrideClientId = urlParams.get('client_id') || localStorage.getItem('ag_client_override_id');
+    if (!overrideClientId) {
+      if (!await Auth.requireAuth('client')) return;
+    }
+    loadPortal();
+  })();
 
   async function loadPortal() {
     try {
       const data = await API.clientPortal.getData();
+      currentPortalData = data;
       const c = data.client;
 
       // Hide loader, show portal
@@ -122,13 +402,22 @@
       document.getElementById('client-name-pill').textContent = c.business_name;
       document.getElementById('client-avatar').textContent = UI.initials(c.business_name);
       document.getElementById('agency-name').textContent = CONFIG.AGENCY_NAME;
+      document.getElementById('rcpt-agency-name').textContent = CONFIG.AGENCY_NAME;
+
+      // Profile Card
+      document.getElementById('prof-contact').textContent = c.contact_person || '—';
+      document.getElementById('prof-email').textContent = c.email || '—';
+      document.getElementById('prof-whatsapp').textContent = c.whatsapp_number || '—';
 
       // Hero card
       document.getElementById('hero-business-name').textContent = c.business_name;
 
       if (c.website_url) {
+        const url = c.website_url.startsWith('http') ? c.website_url : `https://${c.website_url}`;
         document.getElementById('hero-website').innerHTML =
-          `<a href="${c.website_url}" target="_blank">🔗 ${c.website_url}</a>`;
+          `<a href="${url}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; background:var(--color-brand-50); color:var(--color-brand-700); padding:4px 12px; border-radius:var(--radius-full); font-size:0.8125rem; font-weight:600; text-decoration:none; margin-top:4px">
+            🌐 Visit Website: ${c.website_url.replace(/^https?:\/\//, '')} ↗
+          </a>`;
       }
 
       // Status badge + accent bar
@@ -145,7 +434,7 @@
         </span>`;
 
       // Payment info
-      document.getElementById('hero-amount').textContent = UI.formatRupees(c.monthly_amount);
+      document.getElementById('hero-amount').textContent = `${UI.formatRupees(c.monthly_amount)} / ${c.billing_cycle === 'yearly' ? 'yr' : 'mo'}`;
       document.getElementById('hero-due-date').textContent = c.next_due_date_formatted;
       document.getElementById('hero-last-paid').textContent =
         c.last_paid_date ? UI.formatDate(c.last_paid_date) : 'Never';
@@ -190,8 +479,8 @@
     if (!payments.length) {
       wrapper.innerHTML = `<div class="empty-state" style="padding: var(--space-8)">
         <div class="empty-icon">💳</div>
-        <h3>No payments yet</h3>
-        <p>Your payment history will appear here once your agency records a payment.</p>
+        <h3>No payments recorded yet</h3>
+        <p>Your receipts will appear here once your agency records a payment.</p>
       </div>`;
       return;
     }
@@ -202,7 +491,11 @@
         <td style="font-weight:700; color:var(--color-gray-900)">${UI.formatRupees(p.amount)}</td>
         <td>${UI.paymentModeIcon(p.payment_mode)}</td>
         <td style="color:var(--color-gray-500); font-size:0.875rem">${p.reference_note || '—'}</td>
-        <td><span class="badge badge-current"><span class="badge-dot"></span>Received</span></td>
+        <td>
+          <button class="btn btn-secondary btn-sm" onclick="viewReceipt(${i})">
+            🧾 View Receipt
+          </button>
+        </td>
       </tr>
     `).join('');
 
@@ -212,13 +505,132 @@
         <th>Amount</th>
         <th>Payment Mode</th>
         <th>Reference</th>
-        <th>Status</th>
+        <th>Receipt</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   }
 
-  loadPortal();
+  function viewReceipt(index) {
+    if (!currentPortalData || !currentPortalData.payments[index]) return;
+    const p = currentPortalData.payments[index];
+    const c = currentPortalData.client;
+
+    document.getElementById('rcpt-no').textContent = `#RCPT-${p.id.slice(0,8).toUpperCase()}`;
+    document.getElementById('rcpt-client-name').textContent = c.business_name;
+    document.getElementById('rcpt-date').textContent = p.payment_date_formatted;
+    document.getElementById('rcpt-mode').textContent = p.payment_mode;
+    document.getElementById('rcpt-ref').textContent = p.reference_note || 'N/A';
+    document.getElementById('rcpt-amount').textContent = UI.formatRupees(p.amount);
+
+    UI.openModal('receipt-modal');
+  }
+
+  function copyUpiId() {
+    const upi = document.getElementById('upi-id-display').textContent;
+    navigator.clipboard.writeText(upi).then(() => UI.toast('UPI ID copied to clipboard!', 'success'));
+  }
+
+  function sendSupportRequest() {
+    const type = document.getElementById('supp-type').value;
+    const notes = document.getElementById('supp-notes').value.trim();
+    if (!notes) { UI.toast('Please describe your request', 'error'); return; }
+
+    const clientName = currentPortalData?.client?.business_name || 'Client';
+    const msg = `Hi ${CONFIG.AGENCY_NAME}, this is ${clientName}.\n\n*Request Type:* ${type}\n*Details:* ${notes}`;
+    
+    UI.toast('Request created! Opening WhatsApp...', 'success');
+    UI.closeModal('support-modal');
+
+    const adminPhone = CONFIG.ADMIN_WHATSAPP || '919003490495';
+    window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
+
+  async function updateClientPassword() {
+    const newPwd = document.getElementById('c-new-password').value;
+    const confirmPwd = document.getElementById('c-confirm-password').value;
+
+    if (!newPwd || newPwd.length < 6) {
+      UI.toast('Password must be at least 6 characters', 'error');
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      UI.toast('Passwords do not match', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-update-pwd');
+    UI.setLoading(btn, true);
+
+    try {
+      const { error } = await supabaseClient.auth.updateUser({ password: newPwd });
+      if (error) throw new Error(error.message);
+
+      UI.toast('Password updated successfully!', 'success');
+      UI.closeModal('change-pwd-modal');
+      document.getElementById('c-new-password').value = '';
+      document.getElementById('c-confirm-password').value = '';
+    } catch (err) {
+      UI.toast('Error updating password: ' + err.message, 'error');
+    } finally {
+      UI.setLoading(btn, false);
+    }
+  }
+
+  function switchClientTab(tabName) {
+    const tabs = ['overview', 'history', 'support', 'account'];
+    tabs.forEach(t => {
+      const pane = document.getElementById(`tab-${t}`);
+      const btn = document.getElementById(`tabbtn-${t}`);
+      const mbot = document.getElementById(`mbot-${t}`);
+      if (pane) pane.style.display = (t === tabName) ? '' : 'none';
+      if (btn) btn.classList.toggle('active', t === tabName);
+      if (mbot) mbot.classList.toggle('active', t === tabName);
+    });
+  }
+
+  function sendTabSupportRequest() {
+    const type = document.getElementById('tab-supp-type').value;
+    const notes = document.getElementById('tab-supp-notes').value.trim();
+    if (!notes) { UI.toast('Please describe your request details', 'error'); return; }
+
+    const clientName = currentPortalData?.client?.business_name || 'Client';
+    const msg = `Hi ${CONFIG.AGENCY_NAME}, this is ${clientName}.\n\n*Support Request:* ${type}\n*Details:* ${notes}`;
+    
+    UI.toast('Opening WhatsApp to send request to Admin (+91 9003490495)...', 'success');
+    const adminPhone = CONFIG.ADMIN_WHATSAPP || '919003490495';
+    window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
+
+  async function updateTabClientPassword() {
+    const newPwd = document.getElementById('tab-new-password').value;
+    const confirmPwd = document.getElementById('tab-confirm-password').value;
+
+    if (!newPwd || newPwd.length < 6) {
+      UI.toast('Password must be at least 6 characters', 'error');
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      UI.toast('Passwords do not match', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('tab-btn-update-pwd');
+    UI.setLoading(btn, true);
+
+    try {
+      const { error } = await supabaseClient.auth.updateUser({ password: newPwd });
+      if (error) throw new Error(error.message);
+
+      UI.toast('Password updated successfully!', 'success');
+      document.getElementById('tab-new-password').value = '';
+      document.getElementById('tab-confirm-password').value = '';
+    } catch (err) {
+      UI.toast('Error updating password: ' + err.message, 'error');
+    } finally {
+      UI.setLoading(btn, false);
+    }
+  }
 </script>
 </body>
 </html>

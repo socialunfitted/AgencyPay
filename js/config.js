@@ -8,8 +8,9 @@ const CONFIG = {
   SUPABASE_ANON_KEY: 'sb_publishable_f8uUSMWyMr4l4X67dLWm1A_j2M1ADG6',
 
   // ── App ───────────────────────────────────────────────────
-  APP_NAME:    'AgencyPay',
-  AGENCY_NAME: 'Your Agency Name',  // ← Change to your agency name
+  APP_NAME:        'AgencyPay',
+  AGENCY_NAME:     'Social.Unfitted',
+  ADMIN_WHATSAPP:  '919003490495',
 
   // ── Routes ───────────────────────────────────────────────
   ADMIN_HOME:  '/admin/dashboard.html',

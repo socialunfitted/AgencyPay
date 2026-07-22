@@ -220,6 +220,11 @@
               autocomplete="current-password" required>
             <button type="button" class="toggle-pwd" id="toggle-pwd" onclick="togglePwd()">👁</button>
           </div>
+          <div style="text-align:right; margin-top: 6px">
+            <a href="#" onclick="openResetModal(event)" style="font-size:0.8125rem; color:var(--color-brand-600); font-weight:600; text-decoration:none">
+              🔑 Set or Forgot Password?
+            </a>
+          </div>
         </div>
 
         <button type="submit" id="login-btn"
@@ -235,14 +240,70 @@
     </p>
   </div>
 
+  <!-- ── Reset / Set Password Modal ────────────────────────── -->
+  <div class="modal-overlay" id="reset-pwd-modal">
+    <div class="modal" style="max-width:440px">
+      <div class="modal-header">
+        <h3>🔑 Set / Reset Password</h3>
+        <button class="modal-close" onclick="UI.closeModal('reset-pwd-modal')">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.875rem; color:var(--color-gray-600); margin-bottom:var(--space-4)">
+          Enter your registered client email address. We'll send you an instant link to set your password.
+        </p>
+        <div class="form-group">
+          <label class="form-label">Registered Email Address</label>
+          <input type="email" id="reset-email-input" class="form-input" placeholder="client@example.com">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="UI.closeModal('reset-pwd-modal')">Cancel</button>
+        <button class="btn btn-primary" id="btn-send-reset" onclick="sendPasswordResetEmail()">Send Setup Link</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Set New Password Recovery Modal ────────────────────── -->
+  <div class="modal-overlay" id="recovery-pwd-modal">
+    <div class="modal" style="max-width:440px">
+      <div class="modal-header">
+        <h3>🔒 Create Your Password</h3>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.875rem; color:var(--color-gray-600); margin-bottom:var(--space-4)">
+          Enter your new account password below:
+        </p>
+        <div class="form-group" style="margin-bottom:var(--space-3)">
+          <label class="form-label">New Password</label>
+          <input type="password" id="rec-new-pwd" class="form-input" placeholder="Enter new password (min 6 chars)" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm New Password</label>
+          <input type="password" id="rec-confirm-pwd" class="form-input" placeholder="Confirm new password" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btn-save-rec-pwd" onclick="saveRecoveryPassword()">Set Password & Log In</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-container" class="toast-container"></div>
 
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/api.js"></script>
   <script>
-    // Redirect if already logged in
+    // Check if opening via password recovery link or token
     (async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isRecovery = urlParams.get('type') === 'recovery' || window.location.hash.includes('type=recovery');
+      
+      if (isRecovery) {
+        UI.openModal('recovery-pwd-modal');
+        return;
+      }
+
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (session) {
         const role = session.user.user_metadata?.role;
@@ -287,10 +348,65 @@
         const data = await Auth.login(email, password);
         UI.toast('Welcome back, ' + data.name + '!', 'success');
         setTimeout(() => {
-          window.location.href = data.role === 'admin' ? CONFIG.ADMIN_HOME : CONFIG.CLIENT_HOME;
+          window.location.href = data.overrideUrl || (data.role === 'admin' ? CONFIG.ADMIN_HOME : CONFIG.CLIENT_HOME);
         }, 500);
       } catch (err) {
         showError(err.message || 'Login failed. Check your credentials.');
+        UI.setLoading(btn, false);
+      }
+    }
+
+    function openResetModal(e) {
+      if (e) e.preventDefault();
+      document.getElementById('reset-email-input').value = document.getElementById('email').value || '';
+      UI.openModal('reset-pwd-modal');
+    }
+
+    async function sendPasswordResetEmail() {
+      const email = document.getElementById('reset-email-input').value.trim();
+      if (!email) { UI.toast('Please enter your email', 'error'); return; }
+
+      const btn = document.getElementById('btn-send-reset');
+      UI.setLoading(btn, true);
+      try {
+        const redirectUrl = `${window.location.origin}/index.html?type=recovery`;
+        await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+        UI.toast('Password setup link sent to ' + email, 'success');
+        UI.closeModal('reset-pwd-modal');
+      } catch (err) {
+        UI.toast('Error: ' + err.message, 'error');
+      } finally {
+        UI.setLoading(btn, false);
+      }
+    }
+
+    async function saveRecoveryPassword() {
+      const newPwd = document.getElementById('rec-new-pwd').value;
+      const confirmPwd = document.getElementById('rec-confirm-pwd').value;
+
+      if (!newPwd || newPwd.length < 6) {
+        UI.toast('Password must be at least 6 characters', 'error');
+        return;
+      }
+      if (newPwd !== confirmPwd) {
+        UI.toast('Passwords do not match', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btn-save-rec-pwd');
+      UI.setLoading(btn, true);
+      try {
+        const { error } = await supabaseClient.auth.updateUser({ password: newPwd });
+        if (error) throw new Error(error.message);
+
+        UI.toast('Password set successfully! Logging in...', 'success');
+        UI.closeModal('recovery-pwd-modal');
+        setTimeout(() => {
+          window.location.href = CONFIG.CLIENT_HOME;
+        }, 800);
+      } catch (err) {
+        UI.toast('Error setting password: ' + err.message, 'error');
+      } finally {
         UI.setLoading(btn, false);
       }
     }

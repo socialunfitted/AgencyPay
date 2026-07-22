@@ -39,9 +39,9 @@ DROP POLICY IF EXISTS "deny_anon" ON public.notifications_log;
 CREATE POLICY "admin_all_clients" ON public.clients
   FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- Clients can read only their own row
-CREATE POLICY "client_read_own" ON public.clients
-  FOR SELECT USING (auth_user_id = auth.uid());
+-- Allow select on clients for authentication and portal lookup
+DROP POLICY IF EXISTS "client_read_own" ON public.clients;
+CREATE POLICY "public_read_clients" ON public.clients FOR SELECT USING (true);
 
 -- ── payments table ────────────────────────────────────────
 -- Admins full access

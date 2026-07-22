@@ -88,16 +88,27 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const {
       business_name, website_url, contact_person, email, whatsapp_number,
-      username, password, monthly_amount, subscription_start_date, status = "active",
+      password, monthly_amount, subscription_start_date, status = "active",
     } = body;
 
-    if (!business_name || !email || !username || !subscription_start_date) {
-      return badRequest("business_name, email, username, subscription_start_date are required");
+    if (!business_name || !email || !subscription_start_date) {
+      return badRequest("business_name, email, and subscription_start_date are required");
     }
 
     // Generate or use provided password
     const rawPassword = password || generatePassword();
-    const password_hash = await bcrypt.hash(rawPassword, await bcrypt.genSalt(12));
+
+    // Create user in Supabase Auth via admin API
+    const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
+      email: email.trim(),
+      password: rawPassword,
+      email_confirm: true,
+      user_metadata: { role: "client", name: business_name },
+    });
+
+    if (authErr) {
+      return json({ error: authErr.message }, 400);
+    }
 
     // Calculate initial next_due_date = subscription_start_date (no payment yet)
     const nextDue = toDBDate(parseDate(subscription_start_date));
@@ -105,9 +116,8 @@ Deno.serve(async (req: Request) => {
     const { data, error } = await supabase
       .from("clients")
       .insert({
+        auth_user_id: authUser.user.id,
         business_name, website_url, contact_person, email, whatsapp_number,
-        username: username.trim().toLowerCase(),
-        password_hash,
         monthly_amount: Number(monthly_amount) || 1000,
         subscription_start_date,
         next_due_date: nextDue,
@@ -117,7 +127,8 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (error) {
-      if (error.code === "23505") return json({ error: "Username already exists" }, 409);
+      // Rollback auth user creation if DB insert fails
+      await supabase.auth.admin.deleteUser(authUser.user.id);
       return json({ error: error.message }, 500);
     }
 
@@ -138,9 +149,19 @@ Deno.serve(async (req: Request) => {
       if (body[key] !== undefined) updates[key] = body[key];
     }
 
-    // Allow password reset
+    // Allow password reset via Supabase Auth
     if (body.password) {
-      updates.password_hash = await bcrypt.hash(body.password, await bcrypt.genSalt(12));
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("auth_user_id")
+        .eq("id", clientId)
+        .single();
+
+      if (clientData?.auth_user_id) {
+        await supabase.auth.admin.updateUserById(clientData.auth_user_id, {
+          password: body.password,
+        });
+      }
     }
 
     const { data, error } = await supabase
