@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — AgencyPay Client Billing Portal</title>
+  <meta name="description" content="Secure login for AgencyPay — the client subscription and billing portal for your agency.">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1e1e2e 0%, #2d1b6b 50%, #1a1a3e 100%);
+      padding: var(--space-5);
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .login-brand {
+      text-align: center;
+      margin-bottom: var(--space-8);
+      animation: fadeDown 0.5s ease;
+    }
+
+    .login-logo {
+      width: 60px; height: 60px;
+      background: linear-gradient(135deg, var(--color-brand-400), var(--color-brand-700));
+      border-radius: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin-bottom: var(--space-4);
+      box-shadow: 0 8px 32px rgba(99,102,241,0.5);
+    }
+
+    .login-brand h1 {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.03em;
+    }
+
+    .login-brand p {
+      color: rgba(255,255,255,0.5);
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+
+    .login-card {
+      background: rgba(255,255,255,0.97);
+      border-radius: var(--radius-xl);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+      padding: var(--space-8);
+      animation: fadeUp 0.5s ease 0.1s both;
+    }
+
+    /* Role toggle */
+    .role-toggle {
+      display: flex;
+      background: var(--color-gray-100);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      margin-bottom: var(--space-6);
+    }
+
+    .role-btn {
+      flex: 1;
+      padding: 9px;
+      border: none;
+      background: transparent;
+      border-radius: calc(var(--radius-md) - 2px);
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--color-gray-500);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .role-btn.active {
+      background: #fff;
+      color: var(--color-brand-600);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .login-form { display: flex; flex-direction: column; gap: var(--space-4); }
+
+    .form-title {
+      font-family: var(--font-display);
+      font-size: 1.375rem;
+      font-weight: 700;
+      color: var(--color-gray-900);
+      margin-bottom: var(--space-2);
+    }
+
+    .form-subtitle {
+      font-size: 0.875rem;
+      color: var(--color-gray-500);
+      margin-bottom: var(--space-4);
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--color-gray-400);
+      pointer-events: none;
+    }
+
+    .input-wrapper .form-input { padding-left: 38px; }
+
+    .input-wrapper .toggle-pwd {
+      position: absolute;
+      right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: var(--color-gray-400);
+      font-size: 1rem;
+      transition: color var(--transition-fast);
+    }
+    .input-wrapper .toggle-pwd:hover { color: var(--color-gray-700); }
+
+    .login-btn {
+      width: 100%;
+      padding: 13px;
+      font-size: 1rem;
+      justify-content: center;
+      border-radius: var(--radius-md);
+    }
+
+    .error-banner {
+      background: var(--color-danger-50);
+      border: 1px solid var(--color-danger-200);
+      color: var(--color-danger-700);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-size: 0.875rem;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .error-banner.show { display: flex; }
+
+    .login-footer {
+      text-align: center;
+      margin-top: var(--space-5);
+      font-size: 0.8125rem;
+      color: rgba(255,255,255,0.4);
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-brand">
+      <div class="login-logo">💳</div>
+      <h1>AgencyPay</h1>
+      <p>Client Subscription & Billing Portal</p>
+    </div>
+
+    <div class="login-card">
+      <!-- Role Toggle -->
+      <div class="role-toggle">
+        <button class="role-btn active" id="btn-admin-role" onclick="setRole('admin')">
+          ⚙️ Admin Login
+        </button>
+        <button class="role-btn" id="btn-client-role" onclick="setRole('client')">
+          👤 Client Login
+        </button>
+      </div>
+
+      <h2 class="form-title" id="form-title">Admin Login</h2>
+      <p class="form-subtitle" id="form-subtitle">Sign in to manage your clients and billing.</p>
+
+      <div class="error-banner" id="error-banner">
+        <span>⚠</span>
+        <span id="error-text">Invalid credentials. Please try again.</span>
+      </div>
+
+      <form class="login-form" id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <div class="input-wrapper">
+            <span class="input-icon">👤</span>
+            <input type="text" id="username" name="username"
+              class="form-input" placeholder="Enter your username"
+              autocomplete="username" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-wrapper">
+            <span class="input-icon">🔒</span>
+            <input type="password" id="password" name="password"
+              class="form-input" placeholder="Enter your password"
+              autocomplete="current-password" required>
+            <button type="button" class="toggle-pwd" id="toggle-pwd" onclick="togglePwd()">👁</button>
+          </div>
+        </div>
+
+        <button type="submit" id="login-btn"
+          class="btn btn-primary login-btn"
+          data-loading-text="Signing in…">
+          Sign In
+        </button>
+      </form>
+    </div>
+
+    <p class="login-footer">
+      © 2025 AgencyPay · Secure Billing Portal
+    </p>
+  </div>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    let currentRole = 'admin';
+
+    // Redirect if already logged in
+    if (Auth.isLoggedIn()) {
+      const role = Auth.getRole();
+      window.location.href = role === 'admin' ? CONFIG.ADMIN_HOME : CONFIG.CLIENT_HOME;
+    }
+
+    function setRole(role) {
+      currentRole = role;
+      document.getElementById('btn-admin-role').classList.toggle('active', role === 'admin');
+      document.getElementById('btn-client-role').classList.toggle('active', role === 'client');
+      document.getElementById('form-title').textContent = role === 'admin' ? 'Admin Login' : 'Client Login';
+      document.getElementById('form-subtitle').textContent = role === 'admin'
+        ? 'Sign in to manage your clients and billing.'
+        : 'Sign in to view your subscription and payment history.';
+      hideError();
+    }
+
+    function togglePwd() {
+      const inp = document.getElementById('password');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-banner');
+      document.getElementById('error-text').textContent = msg;
+      el.classList.add('show');
+    }
+
+    function hideError() {
+      document.getElementById('error-banner').classList.remove('show');
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      hideError();
+      const btn = document.getElementById('login-btn');
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      UI.setLoading(btn, true);
+      try {
+        const data = await Auth.login(username, password, currentRole);
+        UI.toast('Welcome back, ' + data.name + '!', 'success');
+        setTimeout(() => {
+          window.location.href = currentRole === 'admin' ? CONFIG.ADMIN_HOME : CONFIG.CLIENT_HOME;
+        }, 500);
+      } catch (err) {
+        showError(err.message || 'Login failed. Check your credentials.');
+        UI.setLoading(btn, false);
+      }
+    }
+  </script>
+</body>
+</html>
