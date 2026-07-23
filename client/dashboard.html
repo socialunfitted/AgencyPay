@@ -6,6 +6,7 @@
   <title>My Subscription — AgencyPay</title>
   <meta name="description" content="View your website subscription status, next due date, and payment history.">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/client.css">
 </head>
@@ -39,7 +40,7 @@
   <!-- Loading state -->
   <div id="loading-screen" class="client-container" style="padding-top: 80px; text-align:center">
     <div class="loader" style="margin:auto; width:48px; height:48px"></div>
-    <p style="margin-top: 20px; color: var(--color-gray-500)">Loading your account…</p>
+    <p style="margin-top: 20px; color: var(--color-gray-500); font-weight:500">Loading your account…</p>
   </div>
 
   <!-- Main Content (hidden until loaded) -->
@@ -102,59 +103,197 @@
           </div>
         </div>
 
-        <!-- Payment & Agency Details Grid -->
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);" id="quick-grid">
+        <!-- Dynamic UPI QR Code & Invoice Payment Card -->
+        <div class="card" style="margin-bottom:var(--space-6); background: #ffffff; border: 1px solid var(--color-gray-200); border-radius: var(--radius-lg); padding: var(--space-6); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);">
           
-          <!-- How to Pay Card -->
-          <div class="card" style="margin-bottom:0">
-            <div style="font-weight:700; font-size:1rem; color:var(--color-gray-900); margin-bottom:var(--space-3); display:flex; align-items:center; justify-content:space-between">
-              <span>📲 How to Pay</span>
-              <span class="badge badge-active">UPI / Bank Transfer</span>
+          <!-- Supported Apps Banner -->
+          <div style="background: linear-gradient(135deg, #0f172a, #1e293b); color: #ffffff; padding: 16px 20px; border-radius: var(--radius-md); margin-bottom: var(--space-6);">
+            <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 12px;">
+              SUPPORTED PAYMENT APPS
             </div>
-            <p style="font-size:0.875rem; color:var(--color-gray-600); margin-bottom:var(--space-4)">
-              Pay your website subscription directly using UPI or Bank Transfer:
-            </p>
-            <div style="background:var(--color-gray-50); border:1px solid var(--color-gray-200); padding:12px; border-radius:var(--radius-md); font-size:0.875rem; display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-3)">
+            <div style="display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: 0.8125rem; font-weight: 600; color: #f8fafc;">
+              <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.12);">
+                <img src="https://png.pngtree.com/png-vector/20230817/ourmid/pngtree-google-pay-software-vector-png-image_9183297.png" width="16" height="16" style="object-fit:contain" alt="Google Pay" />
+                Google Pay
+              </span>
+
+              <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.12);">
+                <img src="https://static.vecteezy.com/system/resources/previews/067/065/681/non_2x/phonepe-colored-logo-rounded-icon-transparent-background-free-png.png" width="16" height="16" style="object-fit:contain" alt="PhonePe" />
+                PhonePe
+              </span>
+
+              <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.12);">
+                <img src="https://images.icon-icons.com/730/PNG/512/paytm_icon-icons.com_62778.png" width="16" height="16" style="object-fit:contain" alt="Paytm" />
+                Paytm
+              </span>
+
+              <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.12);">
+                <img src="https://pnghdpro.com/wp-content/themes/pnghdpro/download/social-media-and-brands/bhim-app-icon.png" width="16" height="16" style="object-fit:contain" alt="BHIM" />
+                BHIM
+              </span>
+
+              <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.12);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                  <rect width="24" height="24" rx="12" fill="#232F3E"/>
+                  <path d="M6 15.5C9 17.5 15 17.5 18 15.5" stroke="#FF9900" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M16 14L19 15.5L17.5 17.5" fill="#FF9900"/>
+                </svg>
+                Amazon Pay
+              </span>
+
+              <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.12);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" fill="#00E5FF"/>
+                  <path d="M13 5L7 13H12L11 19L17 11H12L13 5Z" fill="#0F172A"/>
+                </svg>
+                SuperMoney
+              </span>
+
+              <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.12);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                  <rect width="24" height="24" rx="6" fill="#000000"/>
+                  <path d="M7 7H17V17H7V7Z" stroke="#FFFFFF" stroke-width="2"/>
+                  <path d="M10 10H14V14H10V10Z" fill="#FFFFFF"/>
+                </svg>
+                Cred
+              </span>
+
+              <span style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(168,85,247,0.3)); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(168,85,247,0.4); color: #c084fc;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2L15 9H22L16.5 13.5L18.5 20.5L12 16L5.5 20.5L7.5 13.5L2 9H9L12 2Z" fill="#C084FC"/>
+                </svg>
+                Any UPI App
+              </span>
+            </div>
+          </div>
+
+          <div class="upi-invoice-grid">
+            
+            <!-- QR Code Display Box -->
+            <div style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: var(--radius-md); padding: 16px; text-align: center;">
+              <div style="font-size: 0.75rem; font-weight: 700; color: var(--color-gray-500); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                Scan to Pay with Any UPI App
+              </div>
+              
+              <!-- Container for QR -->
+              <div id="qr-container" style="background: #ffffff; padding: 10px; border-radius: var(--radius-sm); border: 1px solid #e2e8f0; display: inline-block; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 12px;">
+                <img id="qr-img-element" src="" alt="Dynamic UPI QR Code" style="width: 190px; height: 190px; display: block; margin: auto;" />
+              </div>
+
+              <!-- Download & Print Actions -->
+              <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-secondary btn-sm" onclick="downloadQR('png')" style="font-size: 0.75rem; padding: 4px 10px;">
+                  ⬇️ PNG
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="downloadQR('svg')" style="font-size: 0.75rem; padding: 4px 10px;">
+                  ⬇️ SVG
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="printInvoiceQR()" style="font-size: 0.75rem; padding: 4px 10px;">
+                  🖨️ Print
+                </button>
+              </div>
+            </div>
+
+            <!-- Invoice Details & Deep Links -->
+            <div style="display: flex; flex-direction: column; justify-content: space-between;">
               <div>
-                <div style="font-size:0.75rem; color:var(--color-gray-500)">Agency UPI ID</div>
-                <strong style="font-family:monospace; font-size:0.9375rem" id="upi-id-display">agency@upi</strong>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                  <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--color-gray-900); margin: 0;">
+                    Subscription Invoice & Payment
+                  </h3>
+                  <div id="invoice-status-badge"></div>
+                </div>
+
+                <div class="invoice-meta-grid" style="font-size: 0.875rem; background: var(--color-gray-50); border: 1px solid var(--color-gray-200); padding: 14px 16px; border-radius: var(--radius-md); margin-bottom: 16px;">
+                  <div>
+                    <span style="color: var(--color-gray-500); font-size: 0.75rem; text-transform: uppercase;">Merchant Name</span>
+                    <div style="font-weight: 700; color: var(--color-gray-900);" id="inv-merchant-name">—</div>
+                  </div>
+                  <div>
+                    <span style="color: var(--color-gray-500); font-size: 0.75rem; text-transform: uppercase;">Merchant UPI ID</span>
+                    <div style="font-weight: 700; font-family: monospace; color: var(--color-brand-600);" id="inv-merchant-upi">—</div>
+                  </div>
+                  <div>
+                    <span style="color: var(--color-gray-500); font-size: 0.75rem; text-transform: uppercase;">Invoice Number</span>
+                    <div style="font-weight: 700; font-family: monospace;" id="inv-number">—</div>
+                  </div>
+                  <div>
+                    <span style="color: var(--color-gray-500); font-size: 0.75rem; text-transform: uppercase;">Reference Number</span>
+                    <div style="font-weight: 700; font-family: monospace; color: var(--color-gray-700);" id="inv-ref-number">—</div>
+                  </div>
+                  <div>
+                    <span style="color: var(--color-gray-500); font-size: 0.75rem; text-transform: uppercase;">Amount Due</span>
+                    <div style="font-weight: 800; font-size: 1.1rem; color: var(--color-success-600);" id="inv-amount">—</div>
+                  </div>
+                  <div>
+                    <span style="color: var(--color-gray-500); font-size: 0.75rem; text-transform: uppercase;">Purpose</span>
+                    <div style="font-weight: 600; color: var(--color-gray-800);" id="inv-purpose">Website Subscription Payment</div>
+                  </div>
+                </div>
               </div>
-              <button class="btn btn-secondary btn-sm" onclick="copyUpiId()">📋 Copy</button>
+
+              <!-- Mobile Pay Now Button & App Shortcuts -->
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 700; color: var(--color-gray-500); text-transform: uppercase; margin-bottom: 8px;">
+                  <span>📱</span>
+                  <span>CLICK TO PAY DIRECTLY ON MOBILE</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <a id="btn-pay-now-main" href="#" class="btn btn-success" style="width: 100%; justify-content: center; font-size: 1rem; font-weight: 800; padding: 12px; text-decoration: none; border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);">
+                    ⚡ PAY NOW WITH ANY UPI APP
+                  </a>
+
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <a id="btn-gpay" href="#" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 110px; justify-content: center; text-decoration: none; font-size: 0.8125rem; gap: 6px;">
+                      <img src="https://png.pngtree.com/png-vector/20230817/ourmid/pngtree-google-pay-software-vector-png-image_9183297.png" width="14" height="14" style="object-fit:contain" alt="Google Pay" />
+                      Google Pay
+                    </a>
+                    <a id="btn-phonepe" href="#" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 110px; justify-content: center; text-decoration: none; font-size: 0.8125rem; gap: 6px;">
+                      <img src="https://static.vecteezy.com/system/resources/previews/067/065/681/non_2x/phonepe-colored-logo-rounded-icon-transparent-background-free-png.png" width="14" height="14" style="object-fit:contain" alt="PhonePe" />
+                      PhonePe
+                    </a>
+                    <a id="btn-paytm" href="#" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 110px; justify-content: center; text-decoration: none; font-size: 0.8125rem; gap: 6px;">
+                      <img src="https://images.icon-icons.com/730/PNG/512/paytm_icon-icons.com_62778.png" width="14" height="14" style="object-fit:contain" alt="Paytm" />
+                      Paytm
+                    </a>
+                    <a id="btn-bhim" href="#" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 110px; justify-content: center; text-decoration: none; font-size: 0.8125rem; gap: 6px;">
+                      <img src="https://pnghdpro.com/wp-content/themes/pnghdpro/download/social-media-and-brands/bhim-app-icon.png" width="14" height="14" style="object-fit:contain" alt="BHIM" />
+                      BHIM
+                    </a>
+                  </div>
+                </div>
+              </div>
+
             </div>
-            <div style="display:flex; gap: var(--space-2)">
-              <a href="upi://pay?pa=agency@upi&pn=AgencyPay" class="btn btn-primary btn-sm" style="flex:1; justify-content:center; text-decoration:none">
-                📱 Open UPI App
-              </a>
-              <button class="btn btn-secondary btn-sm" onclick="switchClientTab('support')">💬 Contact Agency</button>
-            </div>
+
           </div>
 
-          <!-- Account Profile Details Card -->
-          <div class="card" style="margin-bottom:0">
-            <div style="font-weight:700; font-size:1rem; color:var(--color-gray-900); margin-bottom:var(--space-3); display:flex; align-items:center; justify-content:space-between">
-              <span>👤 Account Summary</span>
-              <button class="btn btn-secondary btn-sm" onclick="switchClientTab('account')">🔒 Security</button>
+        </div>
+
+        <!-- Account Profile Details Card -->
+        <div class="card" style="margin-bottom:var(--space-6)">
+          <div style="font-weight:700; font-size:1rem; color:var(--color-gray-900); margin-bottom:var(--space-3); display:flex; align-items:center; justify-content:space-between">
+            <span>👤 Account Summary</span>
+            <button class="btn btn-secondary btn-sm" onclick="switchClientTab('account')">🔒 Security</button>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:var(--space-4); font-size:0.875rem">
+            <div>
+              <span style="color:var(--color-gray-500); font-size:0.75rem; text-transform:uppercase;">Contact Person</span>
+              <div style="font-weight:600" id="prof-contact">—</div>
             </div>
-            <div style="display:flex; flex-direction:column; gap:var(--space-2); font-size:0.875rem">
-              <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--color-gray-100); padding-bottom:6px">
-                <span style="color:var(--color-gray-500)">Contact Person</span>
-                <strong id="prof-contact">—</strong>
-              </div>
-              <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--color-gray-100); padding-bottom:6px">
-                <span style="color:var(--color-gray-500)">Email</span>
-                <strong id="prof-email">—</strong>
-              </div>
-              <div style="display:flex; justify-content:space-between; border-bottom:1px solid var(--color-gray-100); padding-bottom:6px">
-                <span style="color:var(--color-gray-500)">WhatsApp</span>
-                <strong id="prof-whatsapp">—</strong>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding-top:2px">
-                <span style="color:var(--color-gray-500)">Website Status</span>
-                <span class="badge badge-active">Live & Monitored</span>
-              </div>
+            <div>
+              <span style="color:var(--color-gray-500); font-size:0.75rem; text-transform:uppercase;">Email</span>
+              <div style="font-weight:600" id="prof-email">—</div>
+            </div>
+            <div>
+              <span style="color:var(--color-gray-500); font-size:0.75rem; text-transform:uppercase;">WhatsApp</span>
+              <div style="font-weight:600" id="prof-whatsapp">—</div>
+            </div>
+            <div>
+              <span style="color:var(--color-gray-500); font-size:0.75rem; text-transform:uppercase;">Website Status</span>
+              <div><span class="badge badge-active">Live & Monitored</span></div>
             </div>
           </div>
-
         </div>
       </div>
 
@@ -377,104 +516,171 @@
 <script src="../js/auth.js"></script>
 <script src="../js/api.js"></script>
 <script>
+  let isLoading = false;
   let currentPortalData = null;
+  let currentSubInvoice = null;
 
-  (async () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const overrideClientId = urlParams.get('client_id') || localStorage.getItem('ag_client_override_id');
-    if (!overrideClientId) {
-      if (!await Auth.requireAuth('client')) return;
-    }
-    loadPortal();
-  })();
-
-  async function loadPortal() {
+  function parseClientIdFromUrl() {
     try {
-      const data = await API.clientPortal.getData();
-      currentPortalData = data;
-      const c = data.client;
-
-      // Hide loader, show portal
-      document.getElementById('loading-screen').style.display = 'none';
-      document.getElementById('main-portal').style.display = '';
-
-      // Header
-      document.getElementById('client-name-pill').textContent = c.business_name;
-      document.getElementById('client-avatar').textContent = UI.initials(c.business_name);
-      document.getElementById('agency-name').textContent = CONFIG.AGENCY_NAME;
-      document.getElementById('rcpt-agency-name').textContent = CONFIG.AGENCY_NAME;
-
-      // Profile Card
-      document.getElementById('prof-contact').textContent = c.contact_person || '—';
-      document.getElementById('prof-email').textContent = c.email || '—';
-      document.getElementById('prof-whatsapp').textContent = c.whatsapp_number || '—';
-
-      // Hero card
-      document.getElementById('hero-business-name').textContent = c.business_name;
-
-      if (c.website_url) {
-        const url = c.website_url.startsWith('http') ? c.website_url : `https://${c.website_url}`;
-        document.getElementById('hero-website').innerHTML =
-          `<a href="${url}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; background:var(--color-brand-50); color:var(--color-brand-700); padding:4px 12px; border-radius:var(--radius-full); font-size:0.8125rem; font-weight:600; text-decoration:none; margin-top:4px">
-            🌐 Visit Website: ${c.website_url.replace(/^https?:\/\//, '')} ↗
-          </a>`;
+      const rawHref = decodeURIComponent(window.location.href);
+      const uuidMatch = rawHref.match(/[0-9a-fA-F]{8}[-\s]?[0-9a-fA-F]{4}[-\s]?[0-9a-fA-F]{4}[-\s]?[0-9a-fA-F]{4}[-\s]?[0-9a-fA-F]{12}/);
+      if (uuidMatch && uuidMatch[0]) {
+        const cleanUuid = uuidMatch[0].replace(/\s+/g, '-');
+        localStorage.setItem('ag_client_override_id', cleanUuid);
+        return cleanUuid;
       }
 
-      // Status badge + accent bar
-      const statusMap = {
-        current:  { label: 'Current', cls: 'current', barCls: 'success' },
-        due_soon: { label: 'Due Soon', cls: 'due-soon', barCls: 'warning' },
-        overdue:  { label: 'Overdue', cls: 'overdue', barCls: 'danger' },
-      };
-      const s = statusMap[c.billing_status] || statusMap.current;
-      document.getElementById('hero-bar').className = `hero-accent-bar ${s.barCls}`;
-      document.getElementById('hero-status-badge').innerHTML =
-        `<span class="badge badge-${s.cls}" style="font-size:0.9rem; padding:6px 14px">
-          <span class="badge-dot"></span>${s.label}
-        </span>`;
+      const urlParams = new URLSearchParams(window.location.search);
+      const p = urlParams.get('client_id') || urlParams.get('id') || urlParams.get('client');
+      if (p && p.trim()) return p.trim();
+    } catch (e) {}
 
-      // Payment info
-      document.getElementById('hero-amount').textContent = `${UI.formatRupees(c.monthly_amount)} / ${c.billing_cycle === 'yearly' ? 'yr' : 'mo'}`;
-      document.getElementById('hero-due-date').textContent = c.next_due_date_formatted;
-      document.getElementById('hero-last-paid').textContent =
-        c.last_paid_date ? UI.formatDate(c.last_paid_date) : 'Never';
-      document.getElementById('hero-start-date').textContent =
-        'Since ' + UI.formatDate(c.subscription_start_date);
+    return localStorage.getItem('ag_client_override_id') || null;
+  }
 
-      // Countdown badge
-      const daysDiff = c.days_until_due;
-      const countdownEl = document.getElementById('hero-countdown');
+  (async () => {
+    await initDashboard();
+  })();
+
+  async function initDashboard() {
+    const loaderEl = document.getElementById('loading-screen');
+    const mainEl = document.getElementById('main-portal');
+
+    // Show loading indicator during initialization
+    if (loaderEl) loaderEl.style.display = 'block';
+    if (mainEl) mainEl.style.display = 'none';
+
+    try {
+      const overrideClientId = parseClientIdFromUrl();
+      if (!overrideClientId) {
+        const isAuthed = await Auth.requireAuth('client').catch(() => false);
+        if (!isAuthed && !localStorage.getItem('ag_client_override_id')) {
+          if (loaderEl) loaderEl.style.display = 'none';
+          return;
+        }
+      }
+
+      const dataPromise = API.clientPortal.getData();
+      const fetchTimeoutPromise = new Promise((resolve) =>
+        setTimeout(() => resolve(null), 4000)
+      );
+
+      const data = await Promise.race([dataPromise, fetchTimeoutPromise]);
+      if (data) {
+        currentPortalData = data;
+        await renderDashboardUI(data);
+      }
+    } catch (err) {
+      console.warn('Dashboard load note:', err);
+    } finally {
+      if (loaderEl) loaderEl.style.display = 'none';
+      if (mainEl) mainEl.style.display = 'block';
+      isLoading = false;
+    }
+  }
+
+  async function renderDashboardUI(data) {
+    const c = data.client;
+
+    const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    
+    setTxt('client-name-pill', c.business_name || 'Client');
+    setTxt('client-avatar', UI.initials(c.business_name || 'Client'));
+    setTxt('agency-name', CONFIG.AGENCY_NAME);
+    setTxt('rcpt-agency-name', CONFIG.AGENCY_NAME);
+    setTxt('prof-contact', c.contact_person || '—');
+    setTxt('prof-email', c.email || '—');
+    setTxt('prof-whatsapp', c.whatsapp_number || '—');
+    setTxt('hero-business-name', c.business_name || 'Client');
+
+    const websiteEl = document.getElementById('hero-website');
+    if (c.website_url && websiteEl) {
+      const url = c.website_url.startsWith('http') ? c.website_url : `https://${c.website_url}`;
+      websiteEl.innerHTML =
+        `<a href="${url}" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; background:var(--color-brand-50); color:var(--color-brand-700); padding:4px 12px; border-radius:var(--radius-full); font-size:0.8125rem; font-weight:600; text-decoration:none; margin-top:4px">
+          🌐 Visit Website: ${c.website_url.replace(/^https?:\/\//, '')} ↗
+        </a>`;
+    }
+
+    const statusMap = {
+      current:  { label: 'Current', cls: 'current', barCls: 'success' },
+      due_soon: { label: 'Due Soon', cls: 'due-soon', barCls: 'warning' },
+      overdue:  { label: 'Overdue', cls: 'overdue', barCls: 'danger' },
+    };
+    const s = statusMap[c.billing_status] || statusMap.current;
+    const heroBar = document.getElementById('hero-bar');
+    if (heroBar) heroBar.className = `hero-accent-bar ${s.barCls}`;
+    
+    const heroBadge = document.getElementById('hero-status-badge');
+    if (heroBadge) heroBadge.innerHTML = `<span class="badge badge-${s.cls}" style="font-size:0.9rem; padding:6px 14px"><span class="badge-dot"></span>${s.label}</span>`;
+
+    setTxt('hero-amount', `${UI.formatRupees(c.monthly_amount)} / ${c.billing_cycle === 'yearly' ? 'yr' : 'mo'}`);
+    setTxt('hero-due-date', c.next_due_date_formatted);
+    setTxt('hero-last-paid', c.last_paid_date ? UI.formatDate(c.last_paid_date) : 'Never');
+    setTxt('hero-start-date', 'Since ' + UI.formatDate(c.subscription_start_date));
+
+    const daysDiff = c.days_until_due;
+    const countdownEl = document.getElementById('hero-countdown');
+    if (countdownEl) {
       const cdClass = daysDiff > 3 ? 'current' : daysDiff >= 0 ? 'due-soon' : 'overdue';
       countdownEl.className = `countdown-badge ${cdClass}`;
       countdownEl.textContent = c.countdown_text;
+    }
 
-      // Monthly strip
-      const strip = document.getElementById('monthly-strip');
+    // Subscription Invoice & Dynamic UPI QR Code
+    try {
+      let sub = await API.subscriptions.getLatestForClient(c.id).catch(() => null);
+      if (!sub) {
+        sub = await API.subscriptions.generateInvoice(c.id).catch(() => null);
+      }
+      if (sub) {
+        currentSubInvoice = sub;
+
+        setTxt('inv-merchant-name', CONFIG.AGENCY_NAME);
+        setTxt('inv-merchant-upi', CONFIG.ADMIN_UPI_ID);
+        setTxt('inv-number', sub.invoice_number);
+        setTxt('inv-ref-number', sub.reference_number);
+        setTxt('inv-amount', UI.formatRupees(sub.monthly_amount));
+        
+        const invBadge = document.getElementById('invoice-status-badge');
+        if (invBadge) invBadge.innerHTML = UI.statusBadge(sub.payment_status);
+
+        const qrImg = document.getElementById('qr-img-element');
+        if (sub.qr_image && qrImg) {
+          qrImg.src = sub.qr_image;
+        }
+
+        const links = API.subscriptions.getDeepLinks(sub.upi_payload);
+        const setLink = (id, url) => { const a = document.getElementById(id); if (a) a.href = url; };
+        setLink('btn-pay-now-main', links.generic);
+        setLink('btn-gpay', links.gpay);
+        setLink('btn-phonepe', links.phonepe);
+        setLink('btn-paytm', links.paytm);
+        setLink('btn-bhim', links.bhim);
+      }
+    } catch (subErr) {
+      console.warn('Subscription QR load warning:', subErr);
+    }
+
+    const strip = document.getElementById('monthly-strip');
+    if (strip) {
       strip.innerHTML = (data.monthly_strip || []).map(item => `
         <div class="month-chip" title="${item.month} — ${item.status}">
           <div class="month-bar ${item.status}"></div>
           <div class="month-label">${item.month}</div>
         </div>
       `).join('');
-
-      // Payment history table
-      renderPaymentTable(data.payments);
-
-    } catch (err) {
-      document.getElementById('loading-screen').innerHTML = `
-        <div class="empty-state" style="padding-top: 60px">
-          <div class="empty-icon">⚠️</div>
-          <h3>Couldn't load your account</h3>
-          <p>${err.message}</p>
-          <button class="btn btn-primary btn-sm" onclick="location.reload()">Retry</button>
-        </div>`;
     }
+
+    renderPaymentTable(data.payments || []);
   }
 
   function renderPaymentTable(payments) {
     const wrapper = document.getElementById('payment-table-wrapper');
-    document.getElementById('payment-count').textContent =
-      `${payments.length} payment${payments.length !== 1 ? 's' : ''}`;
+    const countEl = document.getElementById('payment-count');
+    if (countEl) countEl.textContent = `${payments.length} payment${payments.length !== 1 ? 's' : ''}`;
+
+    if (!wrapper) return;
 
     if (!payments.length) {
       wrapper.innerHTML = `<div class="empty-state" style="padding: var(--space-8)">
@@ -527,8 +733,83 @@
   }
 
   function copyUpiId() {
-    const upi = document.getElementById('upi-id-display').textContent;
+    const upi = CONFIG.ADMIN_UPI_ID || 'socialunfitted@okicici';
     navigator.clipboard.writeText(upi).then(() => UI.toast('UPI ID copied to clipboard!', 'success'));
+  }
+
+  function downloadQR(format) {
+    if (!currentSubInvoice) return;
+    if (format === 'png') {
+      const a = document.createElement('a');
+      a.href = currentSubInvoice.qr_image;
+      a.download = `${currentSubInvoice.invoice_number}_QR.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      UI.toast('Downloaded PNG QR Code', 'success');
+    } else if (format === 'svg') {
+      const svgData = currentSubInvoice.qr_svg || (QRUtils.createQR(currentSubInvoice.upi_payload)).svgMarkup;
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentSubInvoice.invoice_number}_QR.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      UI.toast('Downloaded SVG QR Code', 'success');
+    }
+  }
+
+  function printInvoiceQR() {
+    if (!currentSubInvoice) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    const clientName = currentPortalData?.client?.business_name || 'Client';
+    const htmlContent = [
+      '<!DOCTYPE html>',
+      '<html>',
+      '<head>',
+      '<title>Subscription Invoice ' + currentSubInvoice.invoice_number + '</title>',
+      '<style>',
+      'body { font-family: system-ui, sans-serif; padding: 40px; color: #0f172a; max-width: 600px; margin: auto; }',
+      '.header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 20px; }',
+      '.qr-box { text-align: center; margin: 30px 0; }',
+      '.qr-box img { width: 220px; height: 220px; border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; }',
+      '.details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }',
+      '.details-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }',
+      '.details-table td.label { color: #64748b; font-weight: 600; width: 40%; }',
+      '.details-table td.value { font-weight: 700; text-align: right; }',
+      '.footer { text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px; }',
+      '</style>',
+      '</head>',
+      '<body>',
+      '<div class="header"><h2>' + CONFIG.AGENCY_NAME + '</h2><p>Official Website Subscription Payment Invoice</p></div>',
+      '<div class="qr-box"><img src="' + currentSubInvoice.qr_image + '" /><p style="font-size:12px; color:#64748b; margin-top:6px;">Scan with Google Pay, PhonePe, Paytm, BHIM, or Any UPI App</p></div>',
+      '<table class="details-table">',
+      '<tr><td class="label">Merchant Name</td><td class="value">' + CONFIG.AGENCY_NAME + '</td></tr>',
+      '<tr><td class="label">Merchant UPI ID</td><td class="value">' + CONFIG.ADMIN_UPI_ID + '</td></tr>',
+      '<tr><td class="label">Client Business</td><td class="value">' + clientName + '</td></tr>',
+      '<tr><td class="label">Invoice Number</td><td class="value">' + currentSubInvoice.invoice_number + '</td></tr>',
+      '<tr><td class="label">Reference Number</td><td class="value">' + currentSubInvoice.reference_number + '</td></tr>',
+      '<tr><td class="label">Amount Due</td><td class="value">₹' + Number(currentSubInvoice.monthly_amount).toLocaleString('en-IN') + '</td></tr>',
+      '<tr><td class="label">Payment Status</td><td class="value">' + currentSubInvoice.payment_status + '</td></tr>',
+      '<tr><td class="label">Due Date</td><td class="value">' + UI.formatDate(currentSubInvoice.due_date) + '</td></tr>',
+      '</table>',
+      '<div class="footer">Thank you for your business! ' + CONFIG.AGENCY_NAME + '</div>',
+      '<' + '/body>',
+      '<' + '/html>'
+    ].join('\n');
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    setTimeout(() => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch (e) {}
+    }, 250);
   }
 
   function sendSupportRequest() {

@@ -6,6 +6,7 @@
   <title>Dashboard — AgencyPay Admin</title>
   <meta name="description" content="Admin dashboard — overview of revenue, clients, and billing status.">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/admin.css">
 </head>
@@ -46,7 +47,7 @@
       </div>
 
       <!-- Quick Action Lists -->
-      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--space-6);" id="quick-lists">
+      <div class="grid admin-quick-grid" style="gap: var(--space-6);" id="quick-lists">
         <div class="card">
           <div class="card-header">
             <span class="card-title">⚠️ Due Soon</span>

@@ -77,6 +77,13 @@ Deno.serve(async (req: Request) => {
 
     if (updateErr) return json({ error: updateErr.message }, 500);
 
+    // Also update any pending subscription invoices for this client to Paid
+    await supabase
+      .from("subscriptions")
+      .update({ payment_status: "Paid", paid_date: payment_date })
+      .eq("client_id", client_id)
+      .eq("payment_status", "Pending");
+
     // Fire "Payment Received" notification asynchronously
     // (don't await — let it run in background)
     dispatchNotification(client_id, "payment_received").catch((e) =>

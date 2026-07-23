@@ -6,6 +6,7 @@
   <title>Client Detail — AgencyPay Admin</title>
   <meta name="description" content="Client profile, payment history, and billing actions.">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/admin.css">
   <style>
@@ -234,12 +235,23 @@
     document.getElementById('sidebar-overlay').classList.remove('open');
   }
 
+  let currentSubscription = null;
+  let clientSubscriptions = [];
+
   async function loadClient() {
     try {
       const data = await API.clients.get(clientId);
       currentClient = data;
       document.getElementById('page-title').textContent = data.business_name;
       document.getElementById('p-amount').value = data.monthly_amount;
+      
+      try {
+        clientSubscriptions = await API.subscriptions.listForClient(clientId);
+        currentSubscription = clientSubscriptions[0] || null;
+      } catch (e) {
+        console.warn('Subscriptions list note:', e);
+      }
+
       renderPage(data);
     } catch (err) {
       document.getElementById('main-content').innerHTML =
@@ -249,6 +261,7 @@
 
   function renderPage(c) {
     const billingStatus = c.billing_status || 'current';
+    const sub = currentSubscription;
 
     document.getElementById('main-content').innerHTML = `
       <!-- Profile Header -->
@@ -276,16 +289,69 @@
         </div>
       </div>
 
-      <!-- Action Bar -->
-      <div class="action-bar">
-        <button class="btn btn-success" onclick="UI.openModal('payment-modal')">💰 Mark Payment Received</button>
-        <button class="btn btn-secondary" onclick="UI.openModal('reminder-modal')">📨 Send Reminder</button>
-        <button class="btn btn-secondary" onclick="sendPasswordSetupLink('${c.id}')">🔑 Send Password Setup Link</button>
+      <!-- Complete 10 Admin Actions Bar -->
+      <div class="action-bar" style="background:#ffffff; border:1px solid var(--color-gray-200); border-radius:var(--radius-lg); padding:var(--space-4);">
+        <div style="width:100%; font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--color-gray-500); margin-bottom:4px;">⚡ Admin Actions Suite</div>
+        
+        <button class="btn btn-success" onclick="UI.openModal('payment-modal')">💰 Mark Paid</button>
+        <button class="btn btn-primary" onclick="adminAction('generateInvoice')">📄 Generate Invoice</button>
+        <button class="btn btn-secondary" onclick="adminAction('approvePayment')">✅ Approve Payment</button>
+        <button class="btn btn-secondary" onclick="adminAction('rejectPayment')">❌ Reject Payment</button>
+        <button class="btn btn-secondary" onclick="adminAction('regenerateQR')">⚡ Regenerate QR</button>
+        <button class="btn btn-secondary" onclick="adminAction('resendInvoice')">📨 Resend Invoice</button>
+        <button class="btn btn-secondary" onclick="adminAction('resendReminder')">🔔 Resend Reminder</button>
+        ${c.status === 'paused' 
+          ? `<button class="btn btn-secondary" onclick="adminAction('resumeSubscription')">▶️ Resume Subscription</button>`
+          : `<button class="btn btn-secondary" onclick="adminAction('pauseSubscription')">⏸️ Pause Subscription</button>`
+        }
+        <button class="btn btn-danger" onclick="adminAction('cancelSubscription')">🚫 Cancel Subscription</button>
+        
         <a href="../client/dashboard.html?client_id=${c.id}" target="_blank" class="btn btn-secondary">👁️ View Client Portal</a>
-        <button class="btn btn-secondary" onclick="togglePause('${c.id}', '${c.status}')">
-          ${c.status === 'paused' ? '▶️ Reactivate' : '⏸️ Pause Account'}
-        </button>
       </div>
+
+      ${sub ? `
+      <!-- Active Subscription & QR Code Preview Card -->
+      <div class="card" style="margin-bottom: var(--space-6); background: #ffffff; border: 1px solid var(--color-gray-200); border-radius: var(--radius-lg); padding: var(--space-6);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 style="font-size:1.1rem; font-weight:800; margin:0;">🎯 Active Subscription QR & Invoice</h3>
+          <div>${UI.statusBadge(sub.payment_status)}</div>
+        </div>
+
+        <div class="detail-qr-grid" style="display:grid; gap: var(--space-5); align-items:center;">
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:var(--radius-md); padding:10px; text-align:center;">
+            <img src="${sub.qr_image}" style="width:150px; height:150px; display:block; margin:auto;" />
+            <div style="font-size:0.75rem; color:var(--color-gray-500); margin-top:6px;">Fresh Dynamic QR</div>
+          </div>
+
+          <div class="detail-meta-grid" style="display:grid; gap:12px; font-size:0.875rem;">
+            <div>
+              <span style="color:var(--color-gray-500); font-size:0.75rem; text-transform:uppercase;">Invoice Number</span>
+              <div style="font-weight:700; font-family:monospace;">${sub.invoice_number}</div>
+            </div>
+            <div>
+              <span style="color:var(--color-gray-500); font-size:0.75rem; text-transform:uppercase;">Reference Number</span>
+              <div style="font-weight:700; font-family:monospace; color:var(--color-brand-600);">${sub.reference_number}</div>
+            </div>
+            <div>
+              <span style="color:var(--color-gray-500); font-size:0.75rem; text-transform:uppercase;">Merchant Name</span>
+              <div style="font-weight:600;">${CONFIG.AGENCY_NAME}</div>
+            </div>
+            <div>
+              <span style="color:var(--color-gray-500); font-size:0.75rem; text-transform:uppercase;">Merchant UPI ID</span>
+              <div style="font-weight:600; font-family:monospace;">${CONFIG.ADMIN_UPI_ID}</div>
+            </div>
+            <div>
+              <span style="color:var(--color-gray-500); font-size:0.75rem; text-transform:uppercase;">Amount</span>
+              <div style="font-weight:800; color:var(--color-success-600);">${UI.formatRupees(sub.monthly_amount)}</div>
+            </div>
+            <div>
+              <span style="color:var(--color-gray-500); font-size:0.75rem; text-transform:uppercase;">Due Date</span>
+              <div style="font-weight:600;">${UI.formatDate(sub.due_date)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      ` : ''}
 
       <!-- Info Grid -->
       <div class="info-grid">
@@ -315,10 +381,21 @@
         </div>
       </div>
 
+      <!-- Subscriptions & Invoices Table -->
+      <div class="card" style="padding:0; margin-bottom: var(--space-6)">
+        <div class="card-header" style="padding: var(--space-5) var(--space-6) var(--space-4)">
+          <span class="card-title">🧾 Generated Invoices & QR Subscriptions</span>
+          <span style="font-size:0.8125rem; color:var(--color-gray-500)">${clientSubscriptions.length} invoice${clientSubscriptions.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="table-wrapper">
+          ${renderSubscriptionsTable(clientSubscriptions)}
+        </div>
+      </div>
+
       <!-- Payment History -->
       <div class="card" style="padding:0; margin-bottom: var(--space-6)">
         <div class="card-header" style="padding: var(--space-5) var(--space-6) var(--space-4)">
-          <span class="card-title">💳 Payment History</span>
+          <span class="card-title">💳 Payment Receipts History</span>
           <span style="font-size:0.8125rem; color:var(--color-gray-500)">${c.payments?.length || 0} payment${c.payments?.length !== 1 ? 's' : ''}</span>
         </div>
         <div class="table-wrapper">
@@ -328,12 +405,47 @@
     `;
   }
 
+  function renderSubscriptionsTable(subs) {
+    if (!subs || !subs.length) {
+      return `<div class="empty-state" style="padding: var(--space-8)">
+        <div class="empty-icon">📄</div>
+        <h3>No subscription invoices generated yet</h3>
+        <p>Click "Generate Invoice" above to create a dynamic UPI QR invoice.</p>
+      </div>`;
+    }
+
+    const rows = subs.map(s => `
+      <tr>
+        <td style="font-family:monospace; font-weight:700;">${s.invoice_number}</td>
+        <td style="font-family:monospace; color:var(--color-brand-600);">${s.reference_number}</td>
+        <td style="font-weight:700;">${UI.formatRupees(s.monthly_amount)}</td>
+        <td>${UI.formatDate(s.due_date)}</td>
+        <td>${UI.statusBadge(s.payment_status)}</td>
+        <td>
+          <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="adminAction('approvePayment', '${s.id}')">Approve</button>
+            <button class="btn btn-secondary btn-sm" onclick="adminAction('rejectPayment', '${s.id}')">Reject</button>
+            <button class="btn btn-secondary btn-sm" onclick="adminAction('regenerateQR', '${s.id}')">QR</button>
+            <button class="btn btn-secondary btn-sm" onclick="adminAction('resendInvoice', '${s.id}')">Resend</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    return `<table>
+      <thead><tr>
+        <th>Invoice No</th><th>Ref No</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
   function renderPaymentTable(payments) {
     if (!payments || !payments.length) {
       return `<div class="empty-state" style="padding: var(--space-8)">
         <div class="empty-icon">💳</div>
         <h3>No payments recorded yet</h3>
-        <p>Use "Mark Payment Received" when the client pays.</p>
+        <p>Use "Mark Payment Received" or "Approve Payment" when the client pays.</p>
       </div>`;
     }
     const rows = payments.map(p => `
@@ -351,6 +463,72 @@
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+  }
+
+  async function adminAction(actionType, targetId = null) {
+    try {
+      let subId = targetId || currentSubscription?.id;
+      
+      // Auto-generate invoice on-the-fly if action requires an invoice and none exists yet
+      if (!subId && ['approvePayment', 'rejectPayment', 'regenerateQR', 'resendInvoice', 'markPaid'].includes(actionType)) {
+        UI.toast('Creating subscription invoice for client…', 'default');
+        const freshSub = await API.subscriptions.generateInvoiceAction(clientId);
+        currentSubscription = freshSub;
+        subId = freshSub.id;
+      }
+
+      let res;
+      if (actionType === 'generateInvoice') {
+        res = await API.subscriptions.generateInvoiceAction(clientId);
+        currentSubscription = res;
+        UI.toast(`Generated Invoice ${res.invoice_number} (Ref: ${res.reference_number})`, 'success');
+
+      } else if (actionType === 'regenerateQR') {
+        res = await API.subscriptions.regenerateQR(subId);
+        currentSubscription = res;
+        UI.toast('Fresh UPI QR Code generated!', 'success');
+
+      } else if (actionType === 'approvePayment' || actionType === 'markPaid') {
+        res = await API.subscriptions.approvePayment(subId);
+        UI.toast(`Invoice ${res.invoice_number || ''} marked as PAID!`, 'success');
+
+      } else if (actionType === 'rejectPayment') {
+        const reason = prompt('Enter rejection reason:', 'Payment verification failed');
+        if (reason === null) return;
+        res = await API.subscriptions.rejectPayment(subId, reason);
+        UI.toast(`Invoice ${res.invoice_number || ''} marked as REJECTED`, 'warning');
+
+      } else if (actionType === 'resendInvoice') {
+        res = await API.subscriptions.resendInvoice(subId);
+        UI.toast('Invoice notification dispatched!', 'success');
+        if (res.waUrl) UI.openCommunicationUrl(res.waUrl);
+        if (res.emailUrl) UI.openCommunicationUrl(res.emailUrl);
+
+      } else if (actionType === 'resendReminder') {
+        res = await API.subscriptions.resendReminder(clientId);
+        UI.toast('Reminder notification dispatched!', 'success');
+        if (res.waUrl) UI.openCommunicationUrl(res.waUrl);
+        if (res.emailUrl) UI.openCommunicationUrl(res.emailUrl);
+
+      } else if (actionType === 'pauseSubscription') {
+        res = await API.subscriptions.pauseSubscription(clientId);
+        UI.toast('Subscription PAUSED', 'warning');
+
+      } else if (actionType === 'resumeSubscription') {
+        res = await API.subscriptions.resumeSubscription(clientId);
+        UI.toast('Subscription RESUMED (Active)', 'success');
+
+      } else if (actionType === 'cancelSubscription') {
+        if (!confirm('Are you sure you want to CANCEL this subscription?')) return;
+        res = await API.subscriptions.cancelSubscription(clientId);
+        UI.toast('Subscription CANCELLED', 'error');
+      }
+
+      await loadClient();
+    } catch (err) {
+      console.error('Admin Action Error:', err);
+      UI.toast('Action Note: ' + err.message, 'warning');
+    }
   }
 
   async function savePayment() {

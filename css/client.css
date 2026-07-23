@@ -478,7 +478,20 @@
   }
 }
 
-/* ── Client Responsive Breakdown ─────────────────────────────── */
+/* ── UPI Invoice Card Responsive Grid ─────────────────────────── */
+.upi-invoice-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.invoice-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 @media (max-width: 768px) {
   .hero-body {
     padding: var(--space-4) !important;
@@ -495,6 +508,14 @@
     font-size: 1.15rem !important;
   }
   .client-name-pill span { display: none; }
+  .upi-invoice-grid {
+    grid-template-columns: 1fr !important;
+    gap: var(--space-4) !important;
+  }
+  .invoice-meta-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
 }
 
 @media (max-width: 480px) {
