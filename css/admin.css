@@ -533,15 +533,121 @@ tr.status-current td:first-child  { border-left: 3px solid var(--color-success-5
   }
 }
 
+}
+
 @media (max-width: 640px) {
   .stats-grid {
     grid-template-columns: 1fr 1fr !important;
   }
   .topbar-actions .btn span { display: none; }
+  
+  /* ── Profile Header Mobile Enhancements ── */
+  .profile-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 16px !important;
+    padding: 18px 16px !important;
+    border-radius: 16px !important;
+  }
+
+  .profile-header-main {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 14px !important;
+    width: 100% !important;
+  }
+
+  .profile-avatar {
+    width: 52px !important;
+    height: 52px !important;
+    font-size: 1.35rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .profile-name {
+    font-size: 1.35rem !important;
+    line-height: 1.25 !important;
+    word-break: break-word !important;
+  }
+
+  .profile-meta {
+    font-size: 0.8125rem !important;
+    word-break: break-all !important;
+    margin-top: 4px !important;
+    line-height: 1.4 !important;
+  }
+
+  .profile-due-box {
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1) !important;
+    box-sizing: border-box !important;
+  }
+
+  .profile-due-box .due-date {
+    font-size: 1.2rem !important;
+    font-weight: 800 !important;
+    color: #ffffff !important;
+  }
+
+  .profile-due-box .due-amount {
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+  }
+
+  /* ── Action Bar Mobile Grid ── */
+  .action-bar {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .action-bar .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 12px 16px !important;
+    font-size: 0.9rem !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ── Info Grid Mobile Columns ── */
+  .info-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  .info-block {
+    padding: 12px !important;
+  }
+
+  .info-value {
+    font-size: 0.9375rem !important;
+    word-break: break-all !important;
+  }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .stats-grid {
     grid-template-columns: 1fr !important;
   }
+  .info-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .topbar-title {
+    font-size: 1.1rem !important;
+    max-width: 160px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
 }
+

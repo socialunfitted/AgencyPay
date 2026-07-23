@@ -543,7 +543,7 @@
     UI.closeModal('support-modal');
 
     const adminPhone = CONFIG.ADMIN_WHATSAPP || '919003490495';
-    window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+    UI.openCommunicationUrl(UI.getWhatsAppUrl(adminPhone, msg));
   }
 
   async function updateClientPassword() {

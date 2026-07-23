@@ -102,7 +102,7 @@
       </div>
       <div class="topbar-actions">
         <button class="btn btn-success btn-sm" onclick="UI.openModal('payment-modal')">
-          💰 Mark Payment Received
+          💰 <span>Mark Payment Received</span>
         </button>
       </div>
     </header>
@@ -214,6 +214,7 @@
     fetch('_sidebar.html').then(r => r.text()).then(html => {
       document.getElementById('sidebar-mount').innerHTML = html;
       document.getElementById('nav-clients').classList.add('active');
+      document.getElementById('mnav-clients')?.classList.add('active');
       document.getElementById('admin-name').textContent = Auth.getName();
       document.getElementById('admin-avatar').textContent = UI.initials(Auth.getName());
     });
@@ -248,24 +249,30 @@
 
   function renderPage(c) {
     const billingStatus = c.billing_status || 'current';
-    const statusLabel = { current: 'Current', due_soon: 'Due Soon', overdue: 'Overdue', paused: 'Paused', cancelled: 'Cancelled' };
 
     document.getElementById('main-content').innerHTML = `
       <!-- Profile Header -->
       <div class="profile-header">
-        <div class="profile-avatar">${UI.initials(c.business_name)}</div>
-        <div style="flex:1">
-          <div class="profile-name">${c.business_name}</div>
-          <div class="profile-meta">
-            ${c.website_url ? `<a href="${c.website_url}" target="_blank">🔗 ${c.website_url}</a> &nbsp;·&nbsp;` : ''}
-            ${c.email} &nbsp;·&nbsp; ${c.whatsapp_number || 'No WhatsApp'}
+        <div class="profile-header-main">
+          <div class="profile-avatar">${UI.initials(c.business_name)}</div>
+          <div style="flex:1; min-width:0;">
+            <div class="profile-name">${c.business_name}</div>
+            <div class="profile-meta">
+              ${c.website_url ? `<a href="${c.website_url}" target="_blank">🔗 ${c.website_url.replace(/^https?:\/\//, '')}</a> &nbsp;·&nbsp; ` : ''}
+              ${c.email} ${c.whatsapp_number ? `&nbsp;·&nbsp; ${c.whatsapp_number}` : ''}
+            </div>
+            <div style="margin-top:6px">${UI.statusBadge(c.status !== 'active' ? c.status : billingStatus)}</div>
           </div>
-          <div style="margin-top:8px">${UI.statusBadge(c.status !== 'active' ? c.status : billingStatus)}</div>
         </div>
-        <div style="text-align:right; flex-shrink:0">
-          <div style="opacity:0.7; font-size:0.8125rem">Next Due</div>
-          <div style="font-family:var(--font-display); font-size:1.5rem; font-weight:800">${UI.formatDate(c.next_due_date)}</div>
-          <div style="font-size:1.25rem; font-weight:700; opacity:0.9">${UI.formatRupees(c.monthly_amount)} / ${c.billing_cycle === 'yearly' ? 'year' : 'month'}</div>
+        <div class="profile-due-box">
+          <div>
+            <div style="opacity:0.75; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">Next Due</div>
+            <div class="due-date" style="font-family:var(--font-display); font-size:1.35rem; font-weight:800">${UI.formatDate(c.next_due_date)}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="opacity:0.75; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">Amount</div>
+            <div class="due-amount" style="font-size:1.2rem; font-weight:700;">${UI.formatRupees(c.monthly_amount)} <span style="font-size:0.8rem; font-weight:400; opacity:0.85">/ ${c.billing_cycle === 'yearly' ? 'yr' : 'mo'}</span></div>
+          </div>
         </div>
       </div>
 
@@ -296,11 +303,15 @@
         </div>
         <div class="info-block">
           <div class="info-label">Email</div>
-          <div class="info-value">${c.email}</div>
+          <div class="info-value">
+            <a href="#" onclick="event.preventDefault(); UI.openCommunicationUrl(UI.getEmailUrl('${c.email}', 'Billing Notification', ''))" style="color:var(--color-brand-600);">✉️ ${c.email}</a>
+          </div>
         </div>
         <div class="info-block">
           <div class="info-label">WhatsApp</div>
-          <div class="info-value">${c.whatsapp_number || '—'}</div>
+          <div class="info-value">
+            ${c.whatsapp_number ? `<a href="#" onclick="event.preventDefault(); UI.openCommunicationUrl(UI.getWhatsAppUrl('${c.whatsapp_number}', 'Hi ${c.business_name},'))" style="color:var(--color-brand-600);">💬 ${c.whatsapp_number}</a>` : '—'}
+          </div>
         </div>
       </div>
 
@@ -377,10 +388,10 @@
       UI.closeModal('reminder-modal');
 
       if (res.waUrl) {
-        window.open(res.waUrl, '_blank');
+        UI.openCommunicationUrl(res.waUrl);
       }
-      if (res.gmailUrl) {
-        window.open(res.gmailUrl, '_blank');
+      if (res.emailUrl || res.gmailUrl) {
+        UI.openCommunicationUrl(res.emailUrl || res.gmailUrl);
       }
     } catch (err) {
       UI.toast('Error: ' + err.message, 'error');
@@ -405,7 +416,10 @@
       const res = await API.clients.sendPasswordSetLink(id);
       UI.toast(`Password setup link sent to ${res.email}!`, 'success');
       if (res.waUrl) {
-        window.open(res.waUrl, '_blank');
+        UI.openCommunicationUrl(res.waUrl);
+      }
+      if (res.emailUrl) {
+        UI.openCommunicationUrl(res.emailUrl);
       }
     } catch (err) {
       UI.toast('Error sending setup link: ' + err.message, 'error');

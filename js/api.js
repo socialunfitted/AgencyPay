@@ -236,16 +236,20 @@ const API = (() => {
 
       const setupMsg = `Hi ${client.business_name},\n\nWelcome to ${CONFIG.AGENCY_NAME}! Please click the link below to set your account password and access your Client Billing Portal:\n\n${redirectUrl}&email=${encodeURIComponent(client.email)}`;
       let waUrl = null;
+      let emailUrl = null;
 
       if (client.whatsapp_number) {
-        const phone = client.whatsapp_number.replace(/\D/g, '');
-        waUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(setupMsg)}`;
+        waUrl = UI.getWhatsAppUrl(client.whatsapp_number, setupMsg);
+      }
+      if (client.email) {
+        emailUrl = UI.getEmailUrl(client.email, "Set up your AgencyPay Password", setupMsg);
       }
 
       return {
         success: true,
         email: client.email,
         waUrl,
+        emailUrl,
         setupMsg,
       };
     },
@@ -420,17 +424,18 @@ const API = (() => {
         await sb.from('notifications_log').insert(logEntries);
       }
 
-      // Pre-fill WhatsApp URL
+      // Pre-fill WhatsApp & Email URLs
       let waUrl = null;
-      if (client.whatsapp_number && (activeChannel === 'whatsapp' || activeChannel === 'both')) {
-        const phone = client.whatsapp_number.replace(/\D/g, '');
-        waUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(messageText)}`;
-      }
-
-      // Pre-fill Gmail Web Compose URL & mailto URL
       let gmailUrl = null;
       let mailtoUrl = null;
+      let emailUrl = null;
+
+      if (client.whatsapp_number && (activeChannel === 'whatsapp' || activeChannel === 'both')) {
+        waUrl = UI.getWhatsAppUrl(client.whatsapp_number, messageText);
+      }
+
       if (client.email && (activeChannel === 'email' || activeChannel === 'both')) {
+        emailUrl = UI.getEmailUrl(client.email, subjectText, messageText);
         gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(client.email)}&su=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(messageText)}`;
         mailtoUrl = `mailto:${encodeURIComponent(client.email)}?subject=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(messageText)}`;
       }
@@ -447,6 +452,7 @@ const API = (() => {
         messageText,
         subjectText,
         waUrl,
+        emailUrl,
         gmailUrl,
         mailtoUrl,
         client,
@@ -682,8 +688,41 @@ const UI = (() => {
     return (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   }
 
+  function isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  }
+
+  function getWhatsAppUrl(phone, messageText) {
+    if (!phone) return null;
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (isMobile()) {
+      return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(messageText || '')}`;
+    } else {
+      return `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(messageText || '')}`;
+    }
+  }
+
+  function getEmailUrl(email, subjectText, messageText) {
+    if (!email) return null;
+    if (isMobile()) {
+      return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subjectText || '')}&body=${encodeURIComponent(messageText || '')}`;
+    } else {
+      return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subjectText || '')}&body=${encodeURIComponent(messageText || '')}`;
+    }
+  }
+
+  function openCommunicationUrl(url) {
+    if (!url) return;
+    if (url.startsWith('mailto:')) {
+      window.location.href = url;
+    } else {
+      window.open(url, '_blank');
+    }
+  }
+
   return {
     toast, formatRupees, formatDate, getBillingStatus, daysUntilDue,
     statusBadge, openModal, closeModal, setLoading, paymentModeIcon, initials,
+    isMobile, getWhatsAppUrl, getEmailUrl, openCommunicationUrl,
   };
 })();
