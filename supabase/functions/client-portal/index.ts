@@ -24,8 +24,8 @@ Deno.serve(async (req: Request) => {
   // Fetch settings
   const { data: settings } = await supabase
     .from("notification_settings")
-    .select("reminder_days_before")
-    .single();
+    .select("reminder_days_before, admin_upi_id, agency_name, admin_whatsapp")
+    .maybeSingle();
   const reminderDaysBefore = settings?.reminder_days_before ?? 3;
 
   // Fetch client profile (only their own row — server enforced)
@@ -83,6 +83,12 @@ Deno.serve(async (req: Request) => {
       days_until_due: daysDiff,
       countdown_text: countdownText,
       next_due_date_formatted: formatDate(parseDate(client.next_due_date)),
+    },
+    settings: {
+      admin_upi_id: settings?.admin_upi_id || "socialunfitted@okicici",
+      agency_name: settings?.agency_name || "Social.Unfitted",
+      admin_whatsapp: settings?.admin_whatsapp || "919003490495",
+      reminder_days_before: reminderDaysBefore,
     },
     payments: (payments || []).map((p) => ({
       ...p,

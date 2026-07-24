@@ -77,6 +77,9 @@ CREATE TABLE IF NOT EXISTS public.notification_templates (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.notification_settings (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_upi_id        TEXT NOT NULL DEFAULT 'socialunfitted@okicici',
+  agency_name         TEXT NOT NULL DEFAULT 'Social.Unfitted',
+  admin_whatsapp      TEXT NOT NULL DEFAULT '919003490495',
   reminder_days_before INT NOT NULL DEFAULT 3,
   grace_days_overdue   INT NOT NULL DEFAULT 2,
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -154,8 +157,8 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 -- SEED: Notification settings (singleton row)
 -- ============================================================
-INSERT INTO public.notification_settings (reminder_days_before, grace_days_overdue)
-VALUES (3, 2)
+INSERT INTO public.notification_settings (admin_upi_id, agency_name, admin_whatsapp, reminder_days_before, grace_days_overdue)
+VALUES ('socialunfitted@okicici', 'Social.Unfitted', '919003490495', 3, 2)
 ON CONFLICT DO NOTHING;
 
 -- ============================================================

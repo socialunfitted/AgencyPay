@@ -618,15 +618,16 @@ const API = (() => {
         console.warn('Payments fetch fallback:', e);
       }
 
-      let rd = 3;
+      let currentSettings = { reminder_days_before: 3 };
       try {
-        const getSetPromise = (async () => {
-          const res = await sb.from('notification_settings').select('reminder_days_before').maybeSingle();
-          return res?.data?.reminder_days_before ?? 3;
-        })();
-        const timeoutSet = new Promise((resolve) => setTimeout(() => resolve(3), 1500));
-        rd = await Promise.race([getSetPromise, timeoutSet]);
-      } catch (e) {}
+        const getSetPromise = settings.get();
+        const timeoutSet = new Promise((resolve) => setTimeout(() => resolve(null), 1800));
+        const resSet = await Promise.race([getSetPromise, timeoutSet]);
+        if (resSet) currentSettings = resSet;
+      } catch (e) {
+        console.warn('Client portal settings fetch warning:', e);
+      }
+      const rd = currentSettings.reminder_days_before ?? 3;
 
       const billingStatus = UI.getBillingStatus(client.next_due_date, rd);
       const daysDiff = UI.daysUntilDue(client.next_due_date);
@@ -659,6 +660,7 @@ const API = (() => {
           countdown_text: countdownText,
           next_due_date_formatted: UI.formatDate(client.next_due_date),
         },
+        settings: currentSettings,
         payments: (payments || []).map(p => ({
           ...p,
           payment_date_formatted: UI.formatDate(p.payment_date),
@@ -995,23 +997,32 @@ const API = (() => {
         if (res) data = res;
       } catch (e) {}
 
+      const upi = data?.admin_upi_id || localStorage.getItem('ag_admin_upi_id') || 'socialunfitted@okicici';
+      const agency = data?.agency_name || localStorage.getItem('ag_agency_name') || 'Social.Unfitted';
+      const whatsapp = data?.admin_whatsapp || localStorage.getItem('ag_admin_whatsapp') || '919003490495';
+      const reminderDays = data?.reminder_days_before ?? 3;
+
+      CONFIG.ADMIN_UPI_ID = upi;
+      CONFIG.AGENCY_NAME = agency;
+      CONFIG.ADMIN_WHATSAPP = whatsapp;
+
       return {
-        admin_upi_id: data?.admin_upi_id || localStorage.getItem('ag_admin_upi_id') || 'socialunfitted@okicici',
-        agency_name: data?.agency_name || localStorage.getItem('ag_agency_name') || 'Social.Unfitted',
-        admin_whatsapp: data?.admin_whatsapp || localStorage.getItem('ag_admin_whatsapp') || '919003490495',
-        reminder_days_before: data?.reminder_days_before ?? 3,
+        admin_upi_id: upi,
+        agency_name: agency,
+        admin_whatsapp: whatsapp,
+        reminder_days_before: reminderDays,
       };
     },
 
     async update(newSettings) {
       if (newSettings.admin_upi_id) {
-        localStorage.setItem('ag_admin_upi_id', newSettings.admin_upi_id.trim());
+        CONFIG.ADMIN_UPI_ID = newSettings.admin_upi_id.trim();
       }
       if (newSettings.agency_name) {
-        localStorage.setItem('ag_agency_name', newSettings.agency_name.trim());
+        CONFIG.AGENCY_NAME = newSettings.agency_name.trim();
       }
       if (newSettings.admin_whatsapp) {
-        localStorage.setItem('ag_admin_whatsapp', newSettings.admin_whatsapp.trim());
+        CONFIG.ADMIN_WHATSAPP = newSettings.admin_whatsapp.trim();
       }
 
       try {
